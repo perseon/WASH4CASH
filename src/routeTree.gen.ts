@@ -10,12 +10,24 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersWsRouteImport } from './routes/users-ws'
+import { Route as LaundromatRouteImport } from './routes/laundromat'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
 const UsersWsRoute = UsersWsRouteImport.update({
   id: '/users-ws',
   path: '/users-ws',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaundromatRoute = LaundromatRouteImport.update({
+  id: '/laundromat',
+  path: '/laundromat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -32,30 +44,38 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
+  '/laundromat': typeof LaundromatRoute
   '/users-ws': typeof UsersWsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
+  '/laundromat': typeof LaundromatRoute
   '/users-ws': typeof UsersWsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
+  '/laundromat': typeof LaundromatRoute
   '/users-ws': typeof UsersWsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/users-ws'
+  fullPaths: '/' | '/about' | '/admin' | '/laundromat' | '/users-ws'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/users-ws'
-  id: '__root__' | '/' | '/about' | '/users-ws'
+  to: '/' | '/about' | '/admin' | '/laundromat' | '/users-ws'
+  id: '__root__' | '/' | '/about' | '/admin' | '/laundromat' | '/users-ws'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  AdminRoute: typeof AdminRoute
+  LaundromatRoute: typeof LaundromatRoute
   UsersWsRoute: typeof UsersWsRoute
 }
 
@@ -66,6 +86,20 @@ declare module '@tanstack/react-router' {
       path: '/users-ws'
       fullPath: '/users-ws'
       preLoaderRoute: typeof UsersWsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/laundromat': {
+      id: '/laundromat'
+      path: '/laundromat'
+      fullPath: '/laundromat'
+      preLoaderRoute: typeof LaundromatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -88,6 +122,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  AdminRoute: AdminRoute,
+  LaundromatRoute: LaundromatRoute,
   UsersWsRoute: UsersWsRoute,
 }
 export const routeTree = rootRouteImport

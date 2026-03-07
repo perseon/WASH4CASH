@@ -8,7 +8,7 @@ export type CommStatus = 'connecting' | 'connected' | 'disconnected'
  * A global singleton for handling client-server communication via Eden Treaty.
  */
 class CommunicationService {
-    private _client: ReturnType<typeof treaty<App>>
+    public api: ReturnType<typeof treaty<App>>
     private _ws: any = null
     private _listeners: Set<(data: any) => void> = new Set()
     private _statusListeners: Set<(status: CommStatus) => void> = new Set()
@@ -18,7 +18,7 @@ class CommunicationService {
 
     constructor(baseUrl: string) {
         this._url = baseUrl
-        this._client = treaty<App>(baseUrl)
+        this.api = treaty<App>(baseUrl)
     }
 
     get status() {
@@ -38,7 +38,7 @@ class CommunicationService {
         this._updateStatus('connecting')
 
         // @ts-ignore
-        this._ws = this._client.ws.subscribe()
+        this._ws = this.api.ws.subscribe()
 
         this._ws.on('open', () => {
             console.log('✅ [CommService] Global channel OPENED')
@@ -139,4 +139,4 @@ class CommunicationService {
 }
 
 // Export a singleton instance
-export const commService = new CommunicationService('localhost:3000')
+export const commService = new CommunicationService('http://localhost:3000')

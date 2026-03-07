@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS Terminal Simulator</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+    <div class="pos-container">
+        <header>
+            <div class="header-left">
+                <h1>POS Terminal</h1>
+                <span id="comm-liveness" class="liveness-dot offline"></span>
+            </div>
+            <div id="connection-status" class="status-badge connecting">Connecting...</div>
+        </header>
+
+        <main>
+            <div class="display-screen">
+                <div id="pos-service-name" class="service-name">-</div>
+                <div id="pos-status-text">Terminal Ready</div>
+                <div id="pos-message" class="secondary-text">Waiting for activation from server...</div>
+            </div>
+
+            <div class="controls">
+                <button id="pay-btn" class="primary-btn" disabled>Tap Card / Pay</button>
+                <button id="reset-btn" class="secondary-btn">Reset Terminal</button>
+            </div>
+        </main>
+
+        <section class="log-section">
+            <h2>Activity Log</h2>
+            <div id="log-container" class="log-container"></div>
+        </section>
+    </div>
+    <script src="index.js"></script>
+</body>
+
+</html>

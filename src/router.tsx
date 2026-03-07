@@ -9,7 +9,6 @@ export function getRouter() {
     context: {
       commService,
     },
-    ssr: false,
     scrollRestoration: true,
     defaultPreload: 'intent',
     defaultPreloadStaleTime: 0,

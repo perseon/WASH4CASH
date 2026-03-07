@@ -23,3 +23,45 @@ model User {
   email String  @unique
   name  String?
 }
+
+enum MachineType {
+  WASHER
+  DRYER
+}
+
+enum MachineStatus {
+  IDLE
+  BUSY
+  DONE
+  MAINTENANCE
+  BROKEN
+}
+
+model Machine {
+  id           Int           @id @default(autoincrement())
+  name         String
+  type         MachineType
+  status       MachineStatus @default(IDLE)
+  transactions Transaction[]
+}
+
+model Program {
+  id           Int           @id @default(autoincrement())
+  name         String
+  type         MachineType
+  durationMin  Int
+  price        Float
+  transactions Transaction[]
+}
+
+model Transaction {
+  id        Int      @id @default(autoincrement())
+  machineId Int
+  programId Int
+  amount    Float
+  status    String // PENDING, PAID, FAILED, COMPLETED
+  createdAt DateTime @default(now())
+
+  machine Machine @relation(fields: [machineId], references: [id])
+  program Program @relation(fields: [programId], references: [id])
+}
