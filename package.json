@@ -9,10 +9,12 @@
     "#/*": "./src/*"
   },
   "scripts": {
-    "dev": "bun --bun vite dev",
     "build": "bun --bun vite build",
     "test": "bun --bun vitest run",
-    "serve": "bun --bun vite preview"
+    "serve": "bun --bun vite preview",
+    "dev:backend": "bun --bun run --cwd server src/index.ts",
+    "dev:frontend": "bun --bun run vite dev",
+    "dev": "bun run --parallel dev:backend dev:frontend"
   },
   "dependencies": {
     "@elysiajs/eden": "^1.4.8",
