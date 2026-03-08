@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { commService, type CommStatus } from '../services/comm.service'
+import { Badge } from './ui/badge'
 
 export default function Header() {
   const [status, setStatus] = useState<CommStatus>(commService.status)
@@ -11,18 +12,19 @@ export default function Header() {
   }, [])
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--header-bg)] px-4 backdrop-blur-lg">
-      <nav className="page-wrap flex flex-wrap items-center gap-x-3 gap-y-2 py-3 sm:py-4">
-        <h2 className="m-0 flex-shrink-0 text-base font-semibold tracking-tight">
+    <header className="sticky top-0 z-50 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <nav className="page-wrap flex flex-wrap items-center gap-x-6 gap-y-2 py-3 sm:py-4">
+        <h2 className="m-0 flex-shrink-0 text-lg font-bold tracking-tight">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm no-underline"
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
-            Wash4Cash
+            <span className="text-primary font-black">WASH</span>
+            <span className="text-foreground">4CASH</span>
           </Link>
         </h2>
 
-        <div className="flex items-center gap-4 flex-1">
+        <div className="flex items-center gap-1 flex-1">
           <Link
             to="/laundromat"
             className="nav-link"
@@ -42,18 +44,23 @@ export default function Header() {
             className="nav-link"
             activeProps={{ className: 'nav-link is-active' }}
           >
-            Users (WS)
+            Users
           </Link>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800/50 rounded-full border border-slate-200 dark:border-slate-700">
-            <div className={`w-2 h-2 rounded-full transition-all duration-300 ${status === 'connected' ? 'bg-emerald-500 shadow-[0_0_8px_var(--success-color)] animate-pulse' :
-                status === 'connecting' ? 'bg-amber-500 animate-bounce' : 'bg-rose-500'
-              }`} />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="relative flex h-2 w-2">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${status === 'connected' ? 'bg-emerald-400' :
+                  status === 'connecting' ? 'bg-amber-400' : 'bg-rose-400'
+                }`}></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${status === 'connected' ? 'bg-emerald-500' :
+                  status === 'connecting' ? 'bg-amber-500' : 'bg-rose-500'
+                }`}></span>
+            </div>
+            <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-widest px-2 py-0">
               {status}
-            </span>
+            </Badge>
           </div>
           <Link
             to="/about"

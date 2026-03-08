@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useLoaderData } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { commService } from '../services/comm.service'
 import {
@@ -9,12 +9,34 @@ import {
     AlertTriangle,
     CheckCircle2,
     Timer,
-    X,
     CreditCard
 } from 'lucide-react'
 
+import { Button } from '../components/ui/button'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card'
+import { Badge } from '../components/ui/badge'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from '../components/ui/dialog'
+import { toast } from 'sonner'
+
 export const Route = createFileRoute('/laundromat')({
     component: LaundromatComponent,
+    loader: async () => {
+        const [machinesRes, programsRes] = await Promise.all([
+            commService.api.machines.get(),
+            commService.api.programs.get()
+        ])
+        return {
+            initialMachines: (machinesRes.data || []) as Machine[],
+            initialPrograms: (programsRes.data || []) as Program[]
+        }
+    }
 })
 
 type MachineType = 'WASHER' | 'DRYER'
@@ -39,16 +61,20 @@ interface MachineUpdate {
     machineId: number
     status: MachineStatus
     remainingTime: number
+    totalDurationSeconds?: number
 }
 
 function LaundromatComponent() {
-    const [machines, setMachines] = useState<Machine[]>([])
-    const [programs, setPrograms] = useState<Program[]>([])
+    const { initialMachines, initialPrograms } = useLoaderData({ from: '/laundromat' })
+    const [machines, setMachines] = useState<Machine[]>(initialMachines)
+    const [programs, setPrograms] = useState<Program[]>(initialPrograms)
     const [updates, setUpdates] = useState<Record<number, MachineUpdate>>({})
     const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null)
     const [selectedProgram, setSelectedProgram] = useState<Program | null>(null)
-    const [isBooking, setIsBooking] = useState(false)
+    const [isBookingOpen, setIsBookingOpen] = useState(false)
     const [isPaying, setIsPaying] = useState(false)
+    const [isPosModalOpen, setIsPosModalOpen] = useState(false)
+    const POS_URL = 'http://localhost:4000'
 
     useEffect(() => {
         commService.connect()
@@ -64,27 +90,39 @@ function LaundromatComponent() {
                 const update = data.data as MachineUpdate
                 setUpdates(prev => ({ ...prev, [update.machineId]: update }))
 
-                // Also update the status in the machines list if it changed
                 setMachines(prev => prev.map(m =>
-                    m.id === update.machineId ? { ...m, status: update.status } : m
+                    m.id === update.machineId ? { ...m, status: update.status || m.status } : m
                 ))
             }
-            if (data.type === 'pos_update' && data.data.type === 'TRANSACTION_RESULT') {
-                const { success } = data.data.payload
-                if (success && selectedMachine && selectedProgram) {
-                    startMachine(selectedMachine.id, selectedProgram.id)
-                    setIsPaying(false)
-                    setIsBooking(false)
-                    setSelectedMachine(null)
-                    setSelectedProgram(null)
-                } else if (!success) {
-                    alert('Payment failed. Please try again.')
+            if (data.type === 'pos_update') {
+                if (data.data.type === 'TRANSACTION_RESULT') {
+                    const { success, error } = data.data.payload
+                    if (success && selectedMachine && selectedProgram) {
+                        toast.success('Payment successful!', {
+                            description: `Starting ${selectedMachine.name} with ${selectedProgram.name}.`
+                        })
+                        startMachine(selectedMachine.id, selectedProgram.id)
+                        setIsPaying(false)
+                        setIsBookingOpen(false)
+                        setSelectedMachine(null)
+                        setSelectedProgram(null)
+                        setIsPosModalOpen(false)
+                    } else if (!success) {
+                        toast.error('Payment failed', {
+                            description: error || 'The transaction was declined or interrupted.'
+                        })
+                        setIsPaying(false)
+                        setIsPosModalOpen(false)
+                    }
+                } else if (data.data.type === 'ERROR') {
+                    toast.error('POS Terminal Error', {
+                        description: data.data.payload.message
+                    })
                     setIsPaying(false)
                 }
             }
         })
 
-        // Request initial data
         commService.send('refreshMachines')
         commService.send('refreshPrograms')
 
@@ -93,18 +131,40 @@ function LaundromatComponent() {
         }
     }, [selectedMachine, selectedProgram])
 
+    useEffect(() => {
+        let timeoutId: any = null;
+
+        if (isPaying) {
+            timeoutId = setTimeout(() => {
+                setIsPaying(false);
+                setIsPosModalOpen(false);
+                commService.send('posReset');
+                toast.error('Payment timeout', {
+                    description: 'No response from POS terminal. Please ensure it is running.'
+                });
+            }, 60000); // 60 seconds
+        }
+
+        return () => {
+            if (timeoutId) clearTimeout(timeoutId);
+        }
+    }, [isPaying])
+
     const startMachine = async (machineId: number, programId: number) => {
         try {
-            // @ts-ignore - treaty types are sometimes tricky with params
+            // @ts-ignore
             await commService.api.machines({ id: machineId }).start.post({ programId })
         } catch (e) {
+            toast.error('Control error', {
+                description: 'Failed to send start signal to the machine.'
+            })
             console.error('Failed to start machine', e)
         }
     }
 
     const handleOpenBooking = (machine: Machine) => {
         setSelectedMachine(machine)
-        setIsBooking(true)
+        setIsBookingOpen(true)
         setSelectedProgram(null)
     }
 
@@ -113,12 +173,16 @@ function LaundromatComponent() {
 
         setIsPaying(true)
         try {
-            // 1. Trigger POS
             const serviceName = `${selectedMachine.name} - ${selectedProgram.name}`
-            await fetch(`http://localhost:3000/trigger-pos?amount=${selectedProgram.price}&serviceName=${serviceName}`)
+            const res = await fetch(`http://localhost:3000/trigger-pos?amount=${selectedProgram.price}&serviceName=${serviceName}`)
+            if (!res.ok) throw new Error('Cound not trigger POS');
 
-            // The actual machine start will be handled by the WS TRANSACTION_RESULT listener
+            // Open the POS modal
+            setIsPosModalOpen(true)
         } catch (e) {
+            toast.error('Backend connection lost', {
+                description: 'Could not communicate with the server to initiate payment.'
+            })
             console.error('POS Trigger failed', e)
             setIsPaying(false)
         }
@@ -131,22 +195,19 @@ function LaundromatComponent() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6">
-            <div className="max-w-6xl mx-auto">
-                <header className="mb-10 flex items-end justify-between">
+        <div className="min-h-screen bg-background p-6">
+            <div className="page-wrap">
+                <header className="mb-12 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                     <div>
-                        <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">
-                            LAUNDROMAT <span className="text-blue-600">LIVE</span>
+                        <h1 className="text-4xl font-black tracking-tight flex items-center gap-2 text-foreground">
+                            <Waves className="text-primary h-8 w-8" />
+                            LAUNDROMAT <Badge variant="secondary" className="ml-2 font-black uppercase">Live</Badge>
                         </h1>
-                        <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Real-time machine status and booking</p>
+                        <p className="text-muted-foreground mt-2 text-lg">Real-time machine status and booking management.</p>
                     </div>
-                    <div className="flex gap-4 mb-1">
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400">
-                            <Waves className="text-blue-500" size={14} /> {machines.filter(m => m.type === 'WASHER').length} Washers
-                        </div>
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400">
-                            <Wind className="text-orange-500" size={14} /> {machines.filter(m => m.type === 'DRYER').length} Dryers
-                        </div>
+                    <div className="flex gap-2">
+                        <Badge variant="outline" className="h-8 px-3 font-bold uppercase tracking-wider">{machines.filter(m => m.type === 'WASHER').length} Washers</Badge>
+                        <Badge variant="outline" className="h-8 px-3 font-bold uppercase tracking-wider">{machines.filter(m => m.type === 'DRYER').length} Dryers</Badge>
                     </div>
                 </header>
 
@@ -157,134 +218,150 @@ function LaundromatComponent() {
                         const isDone = m.status === 'DONE'
 
                         return (
-                            <div
-                                key={m.id}
-                                className={`group relative bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden`}
-                            >
-                                {/* Status Glow Overlay */}
-                                <div className={`absolute top-0 left-0 w-full h-1 opacity-20 ${isBusy ? 'bg-amber-500' : isDone ? 'bg-blue-500' : 'bg-emerald-500'
-                                    }`} />
-
-                                <div className="flex justify-between items-start mb-6">
-                                    <div className={`p-3 rounded-2xl ${m.type === 'WASHER' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600' : 'bg-orange-50 dark:bg-orange-900/20 text-orange-600'
-                                        }`}>
-                                        {m.type === 'WASHER' ? <Waves size={24} /> : <Wind size={24} />}
+                            <Card key={m.id} className={`overflow-hidden transition-all duration-300 hover:shadow-xl border-t-4 ${isBusy ? 'border-t-amber-500' : isDone ? 'border-t-primary' : 'border-t-emerald-500'
+                                }`}>
+                                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                    <div className="space-y-1">
+                                        <CardTitle className="text-2xl font-black">{m.name}</CardTitle>
+                                        <CardDescription className="text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+                                            {m.type === 'WASHER' ? <Waves size={12} className="text-primary" /> : <Wind size={12} className="text-orange-500" />}
+                                            {m.type}
+                                        </CardDescription>
                                     </div>
-                                    <div className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider ${isBusy ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600' :
-                                            isDone ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' :
-                                                'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600'
-                                        }`}>
-                                        {m.status}
+                                    <Badge variant={isBusy ? "warning" : isDone ? "default" : "success"} className="font-black capitalize bg-opacity-20">
+                                        {(m.status || 'IDLE').toLowerCase()}
+                                    </Badge>
+                                </CardHeader>
+                                <CardContent className="pt-4 pb-8 space-y-6">
+                                    <div className="flex flex-col items-center justify-center p-6 bg-muted/30 rounded-3xl border border-dashed border-muted relative overflow-hidden">
+                                        {isBusy && update && update.totalDurationSeconds && (
+                                            <div
+                                                className="absolute bottom-0 left-0 h-1 bg-primary/20 transition-all duration-1000"
+                                                style={{ width: `${Math.min(100, Math.max(0, ((update.totalDurationSeconds - update.remainingTime) / update.totalDurationSeconds) * 100))}%` }}
+                                            />
+                                        )}
+                                        <Clock className="mb-2 text-muted-foreground" size={24} />
+                                        <span className="text-4xl font-mono font-black tabular-nums tracking-tighter z-10">
+                                            {isBusy && update ? formatTime(update.remainingTime) : '--:--'}
+                                        </span>
                                     </div>
-                                </div>
 
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
-                                    {m.name}
-                                </h3>
-
-                                <div className="flex items-center gap-2 mb-6">
-                                    <Clock size={14} className="text-slate-400" />
-                                    <span className="text-2xl font-mono font-bold text-slate-700 dark:text-slate-300">
-                                        {isBusy && update ? formatTime(update.remainingTime) : '--:--'}
-                                    </span>
-                                </div>
-
-                                <button
-                                    onClick={() => handleOpenBooking(m)}
-                                    disabled={isBusy}
-                                    className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${isBusy
-                                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-                                            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30 active:scale-95'
-                                        }`}
-                                >
-                                    {isBusy ? <Clock size={18} /> : isDone ? <CheckCircle2 size={18} /> : <Play size={18} />}
-                                    {isBusy ? 'IN USE' : isDone ? 'FINISHED' : 'BOOK NOW'}
-                                </button>
-                            </div>
+                                    {isBusy && update && update.totalDurationSeconds && (
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                                <span>Progress</span>
+                                                <span>{Math.round(((update.totalDurationSeconds - update.remainingTime) / update.totalDurationSeconds) * 100)}%</span>
+                                            </div>
+                                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-primary transition-all duration-1000 ease-linear shadow-[0_0_10px_rgba(var(--primary),0.5)]"
+                                                    style={{ width: `${Math.min(100, Math.max(0, ((update.totalDurationSeconds - update.remainingTime) / update.totalDurationSeconds) * 100))}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </CardContent>
+                                <CardFooter>
+                                    <Button
+                                        className="w-full h-12 font-black text-lg gap-2 rounded-xl"
+                                        size="lg"
+                                        disabled={isBusy}
+                                        variant={isBusy ? "secondary" : isDone ? "outline" : "default"}
+                                        onClick={() => handleOpenBooking(m)}
+                                    >
+                                        {isBusy ? <Clock size={20} /> : isDone ? <CheckCircle2 size={20} /> : <Play size={20} />}
+                                        {isBusy ? 'IN USE' : isDone ? 'FINISHED' : 'BOOK NOW'}
+                                    </Button>
+                                </CardFooter>
+                            </Card>
                         )
                     })}
                 </div>
 
-                {/* Booking Modal */}
-                {isBooking && selectedMachine && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
-                        <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200">
-                            <div className="p-8">
-                                <div className="flex justify-between items-center mb-6">
-                                    <div>
-                                        <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-tight">
-                                            CONFIGURE <span className="text-blue-600">BOOKING</span>
-                                        </h2>
-                                        <p className="text-sm text-slate-500 font-medium">Machine {selectedMachine.name}</p>
-                                    </div>
-                                    <button
-                                        onClick={() => setIsBooking(false)}
-                                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 transition-colors"
+                <Dialog open={isBookingOpen} onOpenChange={setIsBookingOpen}>
+                    <DialogContent className="sm:max-w-md rounded-[2.5rem]">
+                        <DialogHeader>
+                            <DialogTitle className="text-3xl font-black tracking-tight text-center">
+                                CONFIGURE BOOKING
+                            </DialogTitle>
+                            <DialogDescription className="text-center font-medium">
+                                Machine {selectedMachine?.name} ({selectedMachine?.type})
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="space-y-4 py-4">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Available Programs</label>
+                            <div className="grid gap-3">
+                                {programs.filter(p => p.type === selectedMachine?.type).map(p => (
+                                    <Button
+                                        key={p.id}
+                                        variant={selectedProgram?.id === p.id ? "default" : "outline"}
+                                        className={`h-auto flex items-center justify-between p-4 rounded-2xl border-2 transition-all text-left ${selectedProgram?.id === p.id
+                                            ? 'border-primary'
+                                            : 'border-transparent'
+                                            }`}
+                                        onClick={() => setSelectedProgram(p)}
                                     >
-                                        <X size={24} />
-                                    </button>
-                                </div>
-
-                                <div className="space-y-3 mb-8">
-                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Available Programs</label>
-                                    <div className="grid gap-3">
-                                        {programs.filter(p => p.type === selectedMachine.type).map(p => (
-                                            <button
-                                                key={p.id}
-                                                onClick={() => setSelectedProgram(p)}
-                                                className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all text-left ${selectedProgram?.id === p.id
-                                                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
-                                                        : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center gap-4">
-                                                    <div className={`p-2 rounded-xl ${selectedProgram?.id === p.id ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                                                        }`}>
-                                                        <Timer size={18} />
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-bold text-slate-900 dark:text-white">{p.name}</div>
-                                                        <div className="text-xs text-slate-500 font-medium">{p.durationMin} minutes</div>
-                                                    </div>
-                                                </div>
-                                                <div className="text-lg font-black text-slate-900 dark:text-white">
-                                                    ${p.price.toFixed(2)}
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={handleConfirmBooking}
-                                    disabled={!selectedProgram || isPaying}
-                                    className={`w-full py-5 rounded-[1.25rem] font-black tracking-wider flex items-center justify-center gap-3 transition-all ${!selectedProgram || isPaying
-                                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-                                            : 'bg-slate-900 dark:bg-white dark:text-slate-900 text-white shadow-xl active:scale-95'
-                                        }`}
-                                >
-                                    {isPaying ? (
-                                        <>
-                                            <CreditCard size={20} className="animate-pulse" />
-                                            AWAITING PAYMENT...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Play size={20} />
-                                            INITIATE PAYMENT
-                                        </>
-                                    )}
-                                </button>
-
-                                {isPaying && (
-                                    <div className="mt-4 flex items-center gap-2 justify-center text-xs font-bold text-amber-500 animate-pulse">
-                                        <AlertTriangle size={14} /> COMPLETE PAYMENT AT POS TERMINAL
-                                    </div>
-                                )}
+                                        <div className="flex items-center gap-4">
+                                            <div className={`p-2 rounded-xl bg-muted`}>
+                                                <Timer size={18} />
+                                            </div>
+                                            <div>
+                                                <div className="font-bold">{p.name}</div>
+                                                <div className="text-xs opacity-60 font-medium">{p.durationMin} minutes</div>
+                                            </div>
+                                        </div>
+                                        <div className="text-lg font-black">
+                                            ${p.price.toFixed(2)}
+                                        </div>
+                                    </Button>
+                                ))}
                             </div>
                         </div>
-                    </div>
-                )}
+
+                        <DialogFooter className="flex-col sm:flex-col gap-3">
+                            <Button
+                                size="xl"
+                                className="w-full h-16 font-black text-xl gap-3 rounded-2xl"
+                                disabled={!selectedProgram || isPaying}
+                                onClick={handleConfirmBooking}
+                            >
+                                {isPaying ? (
+                                    <>
+                                        <CreditCard size={24} className="animate-pulse" />
+                                        AWAITING PAYMENT...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Play size={24} />
+                                        INITIATE PAYMENT
+                                    </>
+                                )}
+                            </Button>
+
+                            {isPaying && (
+                                <div className="flex items-center gap-2 justify-center text-xs font-bold text-amber-500 animate-pulse">
+                                    <AlertTriangle size={14} /> COMPLETE PAYMENT AT POS TERMINAL
+                                </div>
+                            )}
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={isPosModalOpen} onOpenChange={setIsPosModalOpen}>
+                    <DialogContent className="sm:max-w-xl h-[600px] p-0 overflow-hidden rounded-[2.5rem] border-none">
+                        <DialogHeader className="p-6 pb-0 absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-background to-transparent pointer-events-none">
+                            <DialogTitle className="text-xl font-black flex items-center gap-2 opacity-50">
+                                <CreditCard size={20} /> SECURE PAYMENT TERMINAL
+                            </DialogTitle>
+                        </DialogHeader>
+                        <iframe
+                            src={POS_URL}
+                            className="w-full h-full border-none pt-12"
+                            title="POS Terminal"
+                        />
+                    </DialogContent>
+                </Dialog>
             </div>
         </div>
     )

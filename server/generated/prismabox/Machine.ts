@@ -21,6 +21,8 @@ export const MachinePlain = t.Object(
       ],
       { additionalProperties: false },
     ),
+    expectedEndTime: __nullable__(t.Date()),
+    totalDurationSeconds: __nullable__(t.Integer()),
   },
   { additionalProperties: false },
 );
@@ -63,6 +65,8 @@ export const MachinePlainInputCreate = t.Object(
         { additionalProperties: false },
       ),
     ),
+    expectedEndTime: t.Optional(__nullable__(t.Date())),
+    totalDurationSeconds: t.Optional(__nullable__(t.Integer())),
   },
   { additionalProperties: false },
 );
@@ -87,6 +91,8 @@ export const MachinePlainInputUpdate = t.Object(
         { additionalProperties: false },
       ),
     ),
+    expectedEndTime: t.Optional(__nullable__(t.Date())),
+    totalDurationSeconds: t.Optional(__nullable__(t.Integer())),
   },
   { additionalProperties: false },
 );
@@ -169,6 +175,8 @@ export const MachineWhere = t.Partial(
             ],
             { additionalProperties: false },
           ),
+          expectedEndTime: t.Date(),
+          totalDurationSeconds: t.Integer(),
         },
         { additionalProperties: false },
       ),
@@ -219,6 +227,8 @@ export const MachineWhereUnique = t.Recursive(
                 ],
                 { additionalProperties: false },
               ),
+              expectedEndTime: t.Date(),
+              totalDurationSeconds: t.Integer(),
             },
             { additionalProperties: false },
           ),
@@ -236,6 +246,8 @@ export const MachineSelect = t.Partial(
       name: t.Boolean(),
       type: t.Boolean(),
       status: t.Boolean(),
+      expectedEndTime: t.Boolean(),
+      totalDurationSeconds: t.Boolean(),
       transactions: t.Boolean(),
       _count: t.Boolean(),
     },
@@ -262,6 +274,12 @@ export const MachineOrderBy = t.Partial(
         additionalProperties: false,
       }),
       name: t.Union([t.Literal("asc"), t.Literal("desc")], {
+        additionalProperties: false,
+      }),
+      expectedEndTime: t.Union([t.Literal("asc"), t.Literal("desc")], {
+        additionalProperties: false,
+      }),
+      totalDurationSeconds: t.Union([t.Literal("asc"), t.Literal("desc")], {
         additionalProperties: false,
       }),
     },

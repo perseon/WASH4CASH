@@ -105,7 +105,7 @@ class CommunicationService {
      */
     onMessage(callback: (data: any) => void) {
         this._listeners.add(callback)
-        return () => this._listeners.delete(callback)
+        return () => { this._listeners.delete(callback) }
     }
 
     /**
@@ -113,7 +113,7 @@ class CommunicationService {
      */
     onStatusChange(callback: (status: CommStatus) => void) {
         this._statusListeners.add(callback)
-        return () => this._statusListeners.delete(callback)
+        return () => { this._statusListeners.delete(callback) }
     }
 
     private _updateStatus(status: CommStatus) {

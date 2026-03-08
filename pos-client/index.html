@@ -4,7 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POS Terminal Simulator</title>
+    <title>POS Terminal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="index.css">
 </head>
 
@@ -12,22 +16,59 @@
     <div class="pos-container">
         <header>
             <div class="header-left">
-                <h1>POS Terminal</h1>
+                <div class="brand">
+                    <span class="brand-icon">💳</span>
+                    <span class="brand-name">POS Terminal</span>
+                </div>
                 <span id="comm-liveness" class="liveness-dot offline"></span>
             </div>
             <div id="connection-status" class="status-badge connecting">Connecting...</div>
         </header>
 
         <main>
-            <div class="display-screen">
-                <div id="pos-service-name" class="service-name">-</div>
-                <div id="pos-status-text">Terminal Ready</div>
-                <div id="pos-message" class="secondary-text">Waiting for activation from server...</div>
+            <!-- Display Screen -->
+            <div id="display-screen" class="display-screen idle">
+
+                <!-- Idle state -->
+                <div id="state-idle" class="state-panel active">
+                    <div class="idle-icon">🏧</div>
+                    <div class="idle-title">Terminal Ready</div>
+                    <div class="idle-subtitle">Waiting for payment request...</div>
+                </div>
+
+                <!-- Active transaction state -->
+                <div id="state-active" class="state-panel">
+                    <div class="transaction-info">
+                        <div class="service-label">SERVICE</div>
+                        <div id="pos-service-name" class="service-name">-</div>
+                    </div>
+                    <div class="price-display">
+                        <span class="price-currency">$</span>
+                        <span id="pos-price" class="price-amount">0.00</span>
+                    </div>
+                    <div id="pos-status-text" class="status-chip waiting">Waiting for Card</div>
+                    <div id="pos-message" class="status-message">Please tap or insert your card</div>
+                </div>
+
+                <!-- Result state -->
+                <div id="state-result" class="state-panel">
+                    <div id="result-icon" class="result-icon">✓</div>
+                    <div id="result-title" class="result-title">Payment Successful</div>
+                    <div id="result-tx" class="result-tx"></div>
+                </div>
+
             </div>
 
+            <!-- Action Buttons -->
             <div class="controls">
-                <button id="pay-btn" class="primary-btn" disabled>Tap Card / Pay</button>
-                <button id="reset-btn" class="secondary-btn">Reset Terminal</button>
+                <button id="pay-btn" class="primary-btn" disabled>
+                    <span class="btn-icon">📲</span>
+                    Tap Card / Pay
+                </button>
+                <button id="reset-btn" class="secondary-btn">
+                    <span class="btn-icon">↺</span>
+                    Reset Terminal
+                </button>
             </div>
         </main>
 

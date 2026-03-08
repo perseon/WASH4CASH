@@ -5,12 +5,19 @@ import { prisma } from "./lib/prisma";
 // --- POS TERMINAL SIMULATOR ---
 const posWorker = new Worker(new URL('./simulated/pos_term.ts', import.meta.url).href);
 
+// Store last POS status to replay to new connections
+let lastPosStatus: any = null;
+
 // Store WebSocket connections to broadcast POS updates
 const activeConnections = new Set<any>();
 
 posWorker.onmessage = (event) => {
   const { type, payload } = event.data;
   console.log(`📡 [Backend] Message from POS Worker:`, type, JSON.stringify(payload));
+
+  if (type === 'STATUS_UPDATE') {
+    lastPosStatus = { type: 'pos_update', data: { type, payload } };
+  }
 
   if (activeConnections.size === 0) {
     console.warn("⚠️ [Backend] No active WebSocket connections to broadcast to");
@@ -33,22 +40,58 @@ async function initMachines() {
   for (const m of machines) {
     const worker = new Worker(new URL('./simulated/machine_worker.ts', import.meta.url).href);
 
-    worker.postMessage({ type: 'INIT', payload: { id: m.id, status: m.status } });
+    let remainingTime = 0;
+    if (m.status === 'BUSY' && m.expectedEndTime) {
+      const now = new Date();
+      const diff = Math.floor((m.expectedEndTime.getTime() - now.getTime()) / 1000);
+      if (diff > 0) {
+        remainingTime = diff;
+      } else {
+        // Time expired while server was down
+        await prisma.machine.update({
+          where: { id: m.id },
+          data: { status: 'DONE', expectedEndTime: null, totalDurationSeconds: null }
+        });
+        m.status = 'DONE';
+      }
+    }
+
+    worker.postMessage({
+      type: 'INIT',
+      payload: {
+        id: m.id,
+        status: m.status,
+        remainingTime,
+        totalDurationSeconds: m.totalDurationSeconds
+      }
+    });
 
     worker.onmessage = async (event) => {
       const { type, payload } = event.data;
       if (type === 'MACHINE_STATE') {
         const { machineId, status, remainingTime } = payload;
 
+        // If it's DONE, clear the persistence fields
+        const updateData: any = { status };
+        if (status === 'IDLE' || status === 'DONE') {
+          updateData.expectedEndTime = null;
+          updateData.totalDurationSeconds = null;
+        }
+
         // Update DB
         await prisma.machine.update({
           where: { id: machineId },
-          data: { status }
+          data: updateData
         });
 
-        // Broadcast to clients
+        // Broadcast to clients (use worker payload which now includes totalDurationSeconds)
         for (const ws of activeConnections) {
-          ws.send({ type: 'machine_update', data: payload });
+          ws.send({
+            type: 'machine_update',
+            data: {
+              ...payload
+            }
+          });
         }
 
         if (status === 'DONE') {
@@ -80,6 +123,19 @@ const app = new Elysia()
 
     const worker = machineWorkers.get(id);
     if (!worker) throw new Error("Machine worker not found");
+
+    const totalDurationSeconds = program.durationMin * 60;
+    const expectedEndTime = new Date(Date.now() + totalDurationSeconds * 1000);
+
+    // Save timer state to DB
+    await prisma.machine.update({
+      where: { id },
+      data: {
+        status: 'BUSY',
+        expectedEndTime,
+        totalDurationSeconds
+      }
+    });
 
     worker.postMessage({ type: 'START', payload: { durationMin: program.durationMin } });
 
@@ -122,6 +178,13 @@ const app = new Elysia()
     open(ws) {
       console.log('🚀 WebSocket connection opened')
       activeConnections.add(ws);
+
+      // Replay last POS status if available
+      if (lastPosStatus) {
+        console.log('🔄 [Backend] Replaying last POS status to new connection');
+        ws.send(lastPosStatus);
+      }
+
       prisma.user.findMany().then(users => {
         ws.send({ type: 'users', data: users })
       })

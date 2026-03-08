@@ -35,6 +35,8 @@ export const TransactionRelations = t.Object(
           ],
           { additionalProperties: false },
         ),
+        expectedEndTime: __nullable__(t.Date()),
+        totalDurationSeconds: __nullable__(t.Integer()),
       },
       { additionalProperties: false },
     ),

@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useLoaderData } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { commService } from '../services/comm.service'
 import {
@@ -13,8 +13,32 @@ import {
     Check
 } from 'lucide-react'
 
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from '../components/ui/select'
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '../components/ui/table'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { Badge } from '../components/ui/badge'
+
 export const Route = createFileRoute('/admin')({
     component: AdminComponent,
+    loader: async () => {
+        const { data } = await commService.api.programs.get()
+        return { initialPrograms: (data || []) as Program[] }
+    }
 })
 
 interface Program {
@@ -26,7 +50,8 @@ interface Program {
 }
 
 function AdminComponent() {
-    const [programs, setPrograms] = useState<Program[]>([])
+    const { initialPrograms } = useLoaderData({ from: '/admin' })
+    const [programs, setPrograms] = useState<Program[]>(initialPrograms)
     const [isAdding, setIsAdding] = useState(false)
     const [newP, setNewP] = useState<Partial<Program>>({
         name: '',
@@ -35,10 +60,6 @@ function AdminComponent() {
         price: 5.00
     })
     const [isLoading, setIsLoading] = useState(false)
-
-    useEffect(() => {
-        fetchPrograms()
-    }, [])
 
     const fetchPrograms = async () => {
         try {
@@ -81,143 +102,152 @@ function AdminComponent() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-8">
-            <div className="max-w-4xl mx-auto">
-                <header className="flex items-center justify-between mb-12">
+        <div className="min-h-screen bg-background p-8">
+            <div className="page-wrap">
+                <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12">
                     <div className="flex items-center gap-4">
-                        <div className="p-4 bg-slate-900 dark:bg-white rounded-2xl text-white dark:text-slate-900 shadow-xl">
+                        <div className="p-4 bg-primary text-primary-foreground rounded-2xl shadow-xl">
                             <Settings size={32} />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">ADMIN PANEL</h1>
-                            <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic">Configure services and programs</p>
+                            <h1 className="text-3xl font-black tracking-tight leading-none text-foreground uppercase">Admin Panel</h1>
+                            <p className="text-muted-foreground mt-1 font-medium italic">Configure services and programs</p>
                         </div>
                     </div>
-                    <button
+                    <Button
                         onClick={() => setIsAdding(!isAdding)}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${isAdding
-                                ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 hover:bg-rose-100'
-                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20'
-                            }`}
+                        variant={isAdding ? "destructive" : "default"}
+                        size="lg"
+                        className="font-bold h-12 px-8 rounded-xl"
                     >
-                        {isAdding ? <AlertCircle size={20} /> : <Plus size={20} />}
+                        {isAdding ? <AlertCircle className="mr-2 h-5 w-5" /> : <Plus className="mr-2 h-5 w-5" />}
                         {isAdding ? 'CANCEL' : 'ADD PROGRAM'}
-                    </button>
+                    </Button>
                 </header>
 
                 {isAdding && (
-                    <div className="mb-12 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl animate-in slide-in-from-top-4 duration-300">
-                        <h2 className="text-xl font-black mb-6 flex items-center gap-3">
-                            <Plus className="text-blue-600" size={24} /> CREATE NEW PROGRAM
-                        </h2>
-                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    <Card className="mb-12 border-2 border-primary/20 shadow-2xl animate-in slide-in-from-top-4 duration-300">
+                        <CardHeader>
+                            <CardTitle className="text-2xl font-black flex items-center gap-2">
+                                <Plus className="text-primary" /> CREATE NEW PROGRAM
+                            </CardTitle>
+                            <CardDescription>Add a new washing or drying service to the system.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 pt-4">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Program Name</label>
-                                <input
-                                    type="text"
+                                <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest pl-1">Program Name</label>
+                                <Input
                                     value={newP.name}
                                     onChange={e => setNewP({ ...newP, name: e.target.value })}
-                                    className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white"
                                     placeholder="Quick Wash..."
+                                    className="h-12 rounded-xl"
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Type</label>
-                                <select
+                                <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest pl-1">Type</label>
+                                <Select
                                     value={newP.type}
-                                    onChange={e => setNewP({ ...newP, type: e.target.value as any })}
-                                    className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white"
+                                    onValueChange={(val: any) => setNewP({ ...newP, type: val })}
                                 >
-                                    <option value="WASHER">Washer</option>
-                                    <option value="DRYER">Dryer</option>
-                                </select>
+                                    <SelectTrigger className="h-12 rounded-xl">
+                                        <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="WASHER">Washer</SelectItem>
+                                        <SelectItem value="DRYER">Dryer</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Duration (min)</label>
+                                <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest pl-1">Duration (min)</label>
                                 <div className="relative">
-                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                    <input
+                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                                    <Input
                                         type="number"
                                         value={newP.durationMin}
                                         onChange={e => setNewP({ ...newP, durationMin: parseInt(e.target.value) })}
-                                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-3 pl-10 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white"
+                                        className="h-12 pl-10 rounded-xl"
                                     />
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Price ($)</label>
+                                <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest pl-1">Price ($)</label>
                                 <div className="relative">
-                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                    <input
+                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                                    <Input
                                         type="number"
                                         step="0.1"
                                         value={newP.price}
                                         onChange={e => setNewP({ ...newP, price: parseFloat(e.target.value) })}
-                                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-3 pl-10 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white"
+                                        className="h-12 pl-10 rounded-xl"
                                     />
                                 </div>
                             </div>
-                        </div>
-                        <div className="mt-8 flex justify-end">
-                            <button
+                        </CardContent>
+                        <div className="p-6 pt-0 flex justify-end">
+                            <Button
                                 onClick={handleAdd}
                                 disabled={isLoading}
-                                className="bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-8 py-4 rounded-2xl font-black tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl disabled:opacity-50"
+                                className="font-black px-12 rounded-2xl h-14"
                             >
                                 {isLoading ? 'SAVING...' : 'SAVE PROGRAM'}
-                            </button>
+                            </Button>
                         </div>
-                    </div>
+                    </Card>
                 )}
 
-                <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-lg">
-                    <h2 className="text-xl font-black mb-8 flex items-center gap-3">
-                        <Check className="text-emerald-500" size={24} /> ACTIVE PROGRAMS ({programs.length})
-                    </h2>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-slate-100 dark:border-slate-800">
-                                    <th className="text-left py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Service</th>
-                                    <th className="text-left py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Type</th>
-                                    <th className="text-left py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Duration</th>
-                                    <th className="text-left py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Price</th>
-                                    <th className="text-right py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                <Card className="shadow-lg border-muted/50 overflow-hidden">
+                    <CardHeader className="bg-muted/30 border-b">
+                        <CardTitle className="text-xl font-black flex items-center gap-2">
+                            <Check className="text-emerald-500" /> ACTIVE PROGRAMS
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-muted/20 hover:bg-muted/20">
+                                    <TableHead className="font-black text-[10px] uppercase tracking-widest pl-8">Service</TableHead>
+                                    <TableHead className="font-black text-[10px] uppercase tracking-widest">Type</TableHead>
+                                    <TableHead className="font-black text-[10px] uppercase tracking-widest text-center">Duration</TableHead>
+                                    <TableHead className="font-black text-[10px] uppercase tracking-widest text-center">Price</TableHead>
+                                    <TableHead className="text-right pr-8 font-black text-[10px] uppercase tracking-widest">Action</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {programs.sort((a, b) => b.id - a.id).map(p => (
-                                    <tr key={p.id} className="border-b border-slate-50 dark:border-slate-800/50 group hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                                        <td className="py-5">
-                                            <div className="font-bold text-slate-900 dark:text-white">{p.name}</div>
-                                            <div className="text-[10px] text-slate-400 font-medium tracking-tighter uppercase">ID-00{p.id}</div>
-                                        </td>
-                                        <td className="py-5">
+                                    <TableRow key={p.id} className="group hover:bg-muted/10">
+                                        <TableCell className="py-6 pl-8">
+                                            <div className="font-bold text-lg">{p.name}</div>
+                                            <div className="text-[10px] text-muted-foreground font-medium tracking-tighter uppercase">ID-00{p.id}</div>
+                                        </TableCell>
+                                        <TableCell>
                                             <div className="flex items-center gap-2">
-                                                {p.type === 'WASHER' ? <Waves size={14} className="text-blue-500" /> : <Wind size={14} className="text-orange-500" />}
-                                                <span className="text-xs font-bold text-slate-600 dark:text-slate-400 tracking-wide">{p.type}</span>
+                                                {p.type === 'WASHER' ? <Waves size={16} className="text-primary" /> : <Wind size={16} className="text-orange-500" />}
+                                                <Badge variant="secondary" className="font-black">{p.type}</Badge>
                                             </div>
-                                        </td>
-                                        <td className="py-5">
-                                            <div className="text-sm font-black text-slate-700 dark:text-slate-300">{p.durationMin} MIN</div>
-                                        </td>
-                                        <td className="py-5">
-                                            <div className="text-sm font-black text-slate-900 dark:text-white">${p.price.toFixed(2)}</div>
-                                        </td>
-                                        <td className="py-5 text-right">
-                                            <button
+                                        </TableCell>
+                                        <TableCell className="text-center font-black text-slate-600 dark:text-slate-400">
+                                            {p.durationMin} MIN
+                                        </TableCell>
+                                        <TableCell className="text-center font-black text-lg">
+                                            ${p.price.toFixed(2)}
+                                        </TableCell>
+                                        <TableCell className="text-right pr-8">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
                                                 onClick={() => handleDelete(p.id)}
-                                                className="p-3 text-slate-300 hover:text-rose-500 transition-colors"
+                                                className="text-muted-foreground hover:text-destructive transition-colors rounded-full"
                                             >
                                                 <Trash2 size={20} />
-                                            </button>
-                                        </td>
-                                    </tr>
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
             </div>
         </div>
     )

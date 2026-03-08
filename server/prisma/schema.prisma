@@ -38,11 +38,13 @@ enum MachineStatus {
 }
 
 model Machine {
-  id           Int           @id @default(autoincrement())
-  name         String
-  type         MachineType
-  status       MachineStatus @default(IDLE)
-  transactions Transaction[]
+  id                   Int           @id @default(autoincrement())
+  name                 String
+  type                 MachineType
+  status               MachineStatus @default(IDLE)
+  expectedEndTime      DateTime?
+  totalDurationSeconds Int?
+  transactions         Transaction[]
 }
 
 model Program {

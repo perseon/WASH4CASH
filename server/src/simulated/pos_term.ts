@@ -13,13 +13,14 @@ export enum POSState {
 let currentState: POSState = POSState.IDLE;
 let currentTransactionId: string | null = null;
 let currentServiceName: string | null = null;
+let currentAmount: number | null = null;
 
 const sendStatus = (status: POSState, message?: string) => {
     currentState = status;
     // @ts-ignore
     postMessage({
         type: "STATUS_UPDATE",
-        payload: { status, message, serviceName: currentServiceName },
+        payload: { status, message, serviceName: currentServiceName, amount: currentAmount },
     });
 };
 
@@ -35,6 +36,7 @@ const sendResult = (success: boolean, transactionId: string, error?: string) => 
     setTimeout(() => {
         currentServiceName = null;
         currentTransactionId = null;
+        currentAmount = null;
         sendStatus(POSState.IDLE);
     }, 3000);
 };
@@ -58,6 +60,7 @@ self.onmessage = (event: MessageEvent) => {
 
             currentTransactionId = `tx_${Date.now()}`;
             currentServiceName = payload.serviceName || "Unknown Service";
+            currentAmount = payload.amount || null;
             sendStatus(POSState.WAITING_FOR_CARD, "Please tap or insert card");
             break;
 
@@ -78,6 +81,7 @@ self.onmessage = (event: MessageEvent) => {
         case "RESET":
             currentServiceName = null;
             currentTransactionId = null;
+            currentAmount = null;
             sendStatus(POSState.IDLE);
             break;
 

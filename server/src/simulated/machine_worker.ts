@@ -9,8 +9,9 @@ enum MachineStatus {
     BROKEN = "BROKEN",
 }
 
-let status: MachineStatus = MachineStatus.IDLE;
+let machineStatus: MachineStatus = MachineStatus.IDLE;
 let remainingTime = 0;
+let totalDurationSeconds = 0;
 let timer: Timer | null = null;
 let machineId: number | null = null;
 
@@ -20,8 +21,9 @@ const sendStatus = () => {
         type: "MACHINE_STATE",
         payload: {
             machineId,
-            status,
+            status: machineStatus,
             remainingTime,
+            totalDurationSeconds,
         },
     });
 };
@@ -31,7 +33,7 @@ const tick = () => {
         remainingTime--;
         sendStatus();
     } else {
-        status = MachineStatus.DONE;
+        machineStatus = MachineStatus.DONE;
         if (timer) clearInterval(timer);
         timer = null;
         sendStatus();
@@ -45,15 +47,24 @@ self.onmessage = (event: MessageEvent) => {
     switch (type) {
         case "INIT":
             machineId = payload.id;
-            status = payload.status || MachineStatus.IDLE;
+            machineStatus = payload.status || MachineStatus.IDLE;
+            remainingTime = payload.remainingTime || 0;
+            totalDurationSeconds = payload.totalDurationSeconds || 0;
+
+            if (machineStatus === MachineStatus.BUSY && remainingTime > 0) {
+                if (timer) clearInterval(timer);
+                timer = setInterval(tick, 1000);
+            }
+
             sendStatus();
             break;
 
         case "START":
-            if (status !== MachineStatus.IDLE && status !== MachineStatus.DONE) return;
+            if (machineStatus !== MachineStatus.IDLE && machineStatus !== MachineStatus.DONE) return;
 
-            status = MachineStatus.BUSY;
-            remainingTime = payload.durationMin * 60; // Convert to seconds for simulation
+            machineStatus = MachineStatus.BUSY;
+            totalDurationSeconds = payload.durationMin * 60;
+            remainingTime = totalDurationSeconds;
             sendStatus();
 
             if (timer) clearInterval(timer);
@@ -63,14 +74,14 @@ self.onmessage = (event: MessageEvent) => {
         case "RESET":
             if (timer) clearInterval(timer);
             timer = null;
-            status = MachineStatus.IDLE;
+            machineStatus = MachineStatus.IDLE;
             remainingTime = 0;
             sendStatus();
             break;
 
         case "SET_STATUS":
-            status = payload.status;
-            if (status !== MachineStatus.BUSY && timer) {
+            machineStatus = payload.status;
+            if (machineStatus !== MachineStatus.BUSY && timer) {
                 clearInterval(timer);
                 timer = null;
                 remainingTime = 0;
