@@ -2,8 +2,11 @@ import { Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { commService, type CommStatus } from '../services/comm.service'
 import { Badge } from './ui/badge'
+import { useTranslation } from 'react-i18next'
+import { LanguageToggle } from './LanguageToggle'
 
 export default function Header() {
+  const { t } = useTranslation()
   const [status, setStatus] = useState<CommStatus>(commService.status)
 
   useEffect(() => {
@@ -30,21 +33,21 @@ export default function Header() {
             className="nav-link"
             activeProps={{ className: 'nav-link is-active' }}
           >
-            Laundromat
+            {t('Laundromat')}
           </Link>
           <Link
             to="/admin"
             className="nav-link"
             activeProps={{ className: 'nav-link is-active' }}
           >
-            Admin
+            {t('Admin')}
           </Link>
           <Link
             to="/users-ws"
             className="nav-link"
             activeProps={{ className: 'nav-link is-active' }}
           >
-            Users
+            {t('Users')}
           </Link>
         </div>
 
@@ -52,10 +55,10 @@ export default function Header() {
           <div className="flex items-center gap-2">
             <div className="relative flex h-2 w-2">
               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${status === 'connected' ? 'bg-emerald-400' :
-                  status === 'connecting' ? 'bg-amber-400' : 'bg-rose-400'
+                status === 'connecting' ? 'bg-amber-400' : 'bg-rose-400'
                 }`}></span>
               <span className={`relative inline-flex rounded-full h-2 w-2 ${status === 'connected' ? 'bg-emerald-500' :
-                  status === 'connecting' ? 'bg-amber-500' : 'bg-rose-500'
+                status === 'connecting' ? 'bg-amber-500' : 'bg-rose-500'
                 }`}></span>
             </div>
             <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-widest px-2 py-0">
@@ -67,8 +70,9 @@ export default function Header() {
             className="nav-link"
             activeProps={{ className: 'nav-link is-active' }}
           >
-            About
+            {t('About')}
           </Link>
+          <LanguageToggle />
         </div>
       </nav>
     </header>

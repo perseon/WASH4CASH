@@ -16,11 +16,12 @@ async function main() {
 
     const machineCount = await prisma.machine.count()
     if (machineCount === 0) {
-        console.log('Seeding machines...')
         const machines = []
-        for (let i = 1; i <= 4; i++) {
-            machines.push({ name: `Washer #${i}`, type: 'WASHER' as const, status: 'IDLE' as const })
-            machines.push({ name: `Dryer #${i}`, type: 'DRYER' as const, status: 'IDLE' as const })
+        for (let i = 1; i <= 2; i++) {
+            machines.push({ name: `Spălare 10kg #${i}`, type: 'WASHER' as const, status: 'IDLE' as const })
+            machines.push({ name: `Spălare 14kg #${i + 2}`, type: 'WASHER' as const, status: 'IDLE' as const })
+            machines.push({ name: `Uscare 10kg #${i}`, type: 'DRYER' as const, status: 'IDLE' as const })
+            machines.push({ name: `Uscare 14kg #${i + 2}`, type: 'DRYER' as const, status: 'IDLE' as const })
         }
         await prisma.machine.createMany({ data: machines })
         console.log('✅ Machines created')
@@ -31,13 +32,13 @@ async function main() {
         console.log('Seeding programs...')
         await prisma.program.createMany({
             data: [
-                { name: 'Quick Wash (30 min)', type: 'WASHER', durationMin: 30, price: 4.50 },
-                { name: 'Cotton 40° (60 min)', type: 'WASHER', durationMin: 60, price: 6.00 },
-                { name: 'Eco Wash (90 min)', type: 'WASHER', durationMin: 90, price: 5.00 },
-                { name: 'Synthetics (45 min)', type: 'WASHER', durationMin: 45, price: 5.50 },
-                { name: 'High Temp Dry (45 min)', type: 'DRYER', durationMin: 45, price: 4.00 },
-                { name: 'Low Temp Dry (60 min)', type: 'DRYER', durationMin: 60, price: 4.00 },
-                { name: 'Rapid Dry (20 min)', type: 'DRYER', durationMin: 20, price: 2.50 },
+                { name: 'Spălare Rapidă (30 min)', type: 'WASHER', durationMin: 30, price: 4.50 },
+                { name: 'Bumbac 40° (60 min)', type: 'WASHER', durationMin: 60, price: 6.00 },
+                { name: 'Spălare Eco (90 min)', type: 'WASHER', durationMin: 90, price: 5.00 },
+                { name: 'Sintetice (45 min)', type: 'WASHER', durationMin: 45, price: 5.50 },
+                { name: 'Uscare Temp Ridicată (45 min)', type: 'DRYER', durationMin: 45, price: 4.00 },
+                { name: 'Uscare Temp Scăzută (60 min)', type: 'DRYER', durationMin: 60, price: 4.00 },
+                { name: 'Uscare Rapidă (20 min)', type: 'DRYER', durationMin: 20, price: 2.50 },
             ]
         })
         console.log('✅ Programs created')

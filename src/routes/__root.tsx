@@ -1,4 +1,4 @@
-import { HeadContent, Link, Outlet, Scripts, createRootRouteWithContext } from '@tanstack/react-router'
+import { HeadContent, Link, Outlet, Scripts, createRootRouteWithContext, useRouterState } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { AlertCircle, Home, RefreshCw } from 'lucide-react'
@@ -11,6 +11,7 @@ import { Toaster } from '../components/ui/sonner'
 import appCss from '../styles.css?url'
 
 import { commService } from '../services/comm.service'
+import '../i18n'
 
 interface MyRouterContext {
   commService: typeof commService
@@ -40,9 +41,25 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     ],
   }),
   shellComponent: RootDocument,
+  component: RootComponent,
   errorComponent: GlobalErrorComponent,
   notFoundComponent: NotFoundComponent,
 })
+
+function RootComponent() {
+  const { location } = useRouterState()
+  const isIndexPage = location.pathname === '/'
+
+  return (
+    <>
+      {!isIndexPage && <Header />}
+      <main>
+        <Outlet />
+      </main>
+      {!isIndexPage && <Footer />}
+    </>
+  )
+}
 
 function GlobalErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
@@ -100,12 +117,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <Header />
-        <main>
-          {children}
-        </main>
+        {children}
         <Toaster />
-        <Footer />
         <TanStackDevtools
           config={{
             position: 'bottom-right',

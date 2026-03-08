@@ -8,19 +8,8 @@ export const MachinePlain = t.Object(
   {
     id: t.Integer(),
     name: t.String(),
-    type: t.Union([t.Literal("WASHER"), t.Literal("DRYER")], {
-      additionalProperties: false,
-    }),
-    status: t.Union(
-      [
-        t.Literal("IDLE"),
-        t.Literal("BUSY"),
-        t.Literal("DONE"),
-        t.Literal("MAINTENANCE"),
-        t.Literal("BROKEN"),
-      ],
-      { additionalProperties: false },
-    ),
+    type: t.String(),
+    status: t.String(),
     expectedEndTime: __nullable__(t.Date()),
     totalDurationSeconds: __nullable__(t.Integer()),
   },
@@ -50,21 +39,8 @@ export const MachineRelations = t.Object(
 export const MachinePlainInputCreate = t.Object(
   {
     name: t.String(),
-    type: t.Union([t.Literal("WASHER"), t.Literal("DRYER")], {
-      additionalProperties: false,
-    }),
-    status: t.Optional(
-      t.Union(
-        [
-          t.Literal("IDLE"),
-          t.Literal("BUSY"),
-          t.Literal("DONE"),
-          t.Literal("MAINTENANCE"),
-          t.Literal("BROKEN"),
-        ],
-        { additionalProperties: false },
-      ),
-    ),
+    type: t.String(),
+    status: t.Optional(t.String()),
     expectedEndTime: t.Optional(__nullable__(t.Date())),
     totalDurationSeconds: t.Optional(__nullable__(t.Integer())),
   },
@@ -74,23 +50,8 @@ export const MachinePlainInputCreate = t.Object(
 export const MachinePlainInputUpdate = t.Object(
   {
     name: t.Optional(t.String()),
-    type: t.Optional(
-      t.Union([t.Literal("WASHER"), t.Literal("DRYER")], {
-        additionalProperties: false,
-      }),
-    ),
-    status: t.Optional(
-      t.Union(
-        [
-          t.Literal("IDLE"),
-          t.Literal("BUSY"),
-          t.Literal("DONE"),
-          t.Literal("MAINTENANCE"),
-          t.Literal("BROKEN"),
-        ],
-        { additionalProperties: false },
-      ),
-    ),
+    type: t.Optional(t.String()),
+    status: t.Optional(t.String()),
     expectedEndTime: t.Optional(__nullable__(t.Date())),
     totalDurationSeconds: t.Optional(__nullable__(t.Integer())),
   },
@@ -162,19 +123,8 @@ export const MachineWhere = t.Partial(
           OR: t.Array(Self, { additionalProperties: false }),
           id: t.Integer(),
           name: t.String(),
-          type: t.Union([t.Literal("WASHER"), t.Literal("DRYER")], {
-            additionalProperties: false,
-          }),
-          status: t.Union(
-            [
-              t.Literal("IDLE"),
-              t.Literal("BUSY"),
-              t.Literal("DONE"),
-              t.Literal("MAINTENANCE"),
-              t.Literal("BROKEN"),
-            ],
-            { additionalProperties: false },
-          ),
+          type: t.String(),
+          status: t.String(),
           expectedEndTime: t.Date(),
           totalDurationSeconds: t.Integer(),
         },
@@ -214,19 +164,8 @@ export const MachineWhereUnique = t.Recursive(
             {
               id: t.Integer(),
               name: t.String(),
-              type: t.Union([t.Literal("WASHER"), t.Literal("DRYER")], {
-                additionalProperties: false,
-              }),
-              status: t.Union(
-                [
-                  t.Literal("IDLE"),
-                  t.Literal("BUSY"),
-                  t.Literal("DONE"),
-                  t.Literal("MAINTENANCE"),
-                  t.Literal("BROKEN"),
-                ],
-                { additionalProperties: false },
-              ),
+              type: t.String(),
+              status: t.String(),
               expectedEndTime: t.Date(),
               totalDurationSeconds: t.Integer(),
             },
@@ -257,12 +196,7 @@ export const MachineSelect = t.Partial(
 
 export const MachineInclude = t.Partial(
   t.Object(
-    {
-      type: t.Boolean(),
-      status: t.Boolean(),
-      transactions: t.Boolean(),
-      _count: t.Boolean(),
-    },
+    { transactions: t.Boolean(), _count: t.Boolean() },
     { additionalProperties: false },
   ),
 );
@@ -274,6 +208,12 @@ export const MachineOrderBy = t.Partial(
         additionalProperties: false,
       }),
       name: t.Union([t.Literal("asc"), t.Literal("desc")], {
+        additionalProperties: false,
+      }),
+      type: t.Union([t.Literal("asc"), t.Literal("desc")], {
+        additionalProperties: false,
+      }),
+      status: t.Union([t.Literal("asc"), t.Literal("desc")], {
         additionalProperties: false,
       }),
       expectedEndTime: t.Union([t.Literal("asc"), t.Literal("desc")], {

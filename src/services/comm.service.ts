@@ -49,10 +49,10 @@ class CommunicationService {
         this._ws.on('message', (event: any) => {
             // Eden Treaty might return the raw MessageEvent or the data depending on version/config
             // We'll log the full event for debugging as requested
-            console.log('📥 [CommService] RAW MESSAGE RECEIVED:', event)
+            // console.log('📥 [CommService] RAW MESSAGE RECEIVED:', event)
 
             const data = event.data !== undefined ? event.data : event
-            console.log('📦 [CommService] EXTRACTED DATA:', data)
+            // console.log('📦 [CommService] EXTRACTED DATA:', data)
 
             this._notify(data)
         })

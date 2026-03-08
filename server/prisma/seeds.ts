@@ -1,12 +1,11 @@
 import { PrismaClient } from "../src/generated/prisma/client.js";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 
-if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is not set");
-}
-
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
+const adapter = new PrismaLibSql({ url: dbUrl });
 const prisma = new PrismaClient({ adapter });
+
+
 
 const userData = [
     { name: "John Doe", email: "john.doe@example.com" },

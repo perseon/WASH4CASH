@@ -22,19 +22,8 @@ export const TransactionRelations = t.Object(
       {
         id: t.Integer(),
         name: t.String(),
-        type: t.Union([t.Literal("WASHER"), t.Literal("DRYER")], {
-          additionalProperties: false,
-        }),
-        status: t.Union(
-          [
-            t.Literal("IDLE"),
-            t.Literal("BUSY"),
-            t.Literal("DONE"),
-            t.Literal("MAINTENANCE"),
-            t.Literal("BROKEN"),
-          ],
-          { additionalProperties: false },
-        ),
+        type: t.String(),
+        status: t.String(),
         expectedEndTime: __nullable__(t.Date()),
         totalDurationSeconds: __nullable__(t.Integer()),
       },
@@ -44,9 +33,7 @@ export const TransactionRelations = t.Object(
       {
         id: t.Integer(),
         name: t.String(),
-        type: t.Union([t.Literal("WASHER"), t.Literal("DRYER")], {
-          additionalProperties: false,
-        }),
+        type: t.String(),
         durationMin: t.Integer(),
         price: t.Number(),
       },

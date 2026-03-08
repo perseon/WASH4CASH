@@ -33,10 +33,22 @@ const tick = () => {
         remainingTime--;
         sendStatus();
     } else {
-        machineStatus = MachineStatus.DONE;
-        if (timer) clearInterval(timer);
-        timer = null;
-        sendStatus();
+        if (machineStatus === MachineStatus.BUSY) {
+            machineStatus = MachineStatus.DONE;
+            remainingTime = 60; // Stay in DONE state for 1 minute
+            sendStatus();
+            // Note: We don't clear the interval here, because we want it to keep ticking for the DONE state
+        } else if (machineStatus === MachineStatus.DONE) {
+            machineStatus = MachineStatus.IDLE;
+            remainingTime = 0;
+            if (timer) clearInterval(timer);
+            timer = null;
+            sendStatus();
+        } else {
+            if (timer) clearInterval(timer);
+            timer = null;
+            sendStatus();
+        }
     }
 };
 
@@ -53,6 +65,11 @@ self.onmessage = (event: MessageEvent) => {
 
             if (machineStatus === MachineStatus.BUSY && remainingTime > 0) {
                 if (timer) clearInterval(timer);
+                timer = setInterval(tick, 1000);
+            } else if (machineStatus === MachineStatus.DONE) {
+                // If we initialize in DONE state (e.g. after restart), give it 60s to clear
+                if (timer) clearInterval(timer);
+                remainingTime = 60;
                 timer = setInterval(tick, 1000);
             }
 

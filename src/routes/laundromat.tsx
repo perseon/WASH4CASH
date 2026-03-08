@@ -1,5 +1,6 @@
 import { createFileRoute, useLoaderData } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { commService } from '../services/comm.service'
 import {
     Waves,
@@ -65,6 +66,7 @@ interface MachineUpdate {
 }
 
 function LaundromatComponent() {
+    const { t } = useTranslation()
     const { initialMachines, initialPrograms } = useLoaderData({ from: '/laundromat' })
     const [machines, setMachines] = useState<Machine[]>(initialMachines)
     const [programs, setPrograms] = useState<Program[]>(initialPrograms)
@@ -201,13 +203,13 @@ function LaundromatComponent() {
                     <div>
                         <h1 className="text-4xl font-black tracking-tight flex items-center gap-2 text-foreground">
                             <Waves className="text-primary h-8 w-8" />
-                            LAUNDROMAT <Badge variant="secondary" className="ml-2 font-black uppercase">Live</Badge>
+                            {t('Laundromat')} <Badge variant="secondary" className="ml-2 font-black uppercase">{t('Live')}</Badge>
                         </h1>
-                        <p className="text-muted-foreground mt-2 text-lg">Real-time machine status and booking management.</p>
+                        <p className="text-muted-foreground mt-2 text-lg">{t('Real-time machine status and booking management.')}</p>
                     </div>
                     <div className="flex gap-2">
-                        <Badge variant="outline" className="h-8 px-3 font-bold uppercase tracking-wider">{machines.filter(m => m.type === 'WASHER').length} Washers</Badge>
-                        <Badge variant="outline" className="h-8 px-3 font-bold uppercase tracking-wider">{machines.filter(m => m.type === 'DRYER').length} Dryers</Badge>
+                        <Badge variant="outline" className="h-8 px-3 font-bold uppercase tracking-wider">{machines.filter(m => m.type === 'WASHER').length} {t('Washers')}</Badge>
+                        <Badge variant="outline" className="h-8 px-3 font-bold uppercase tracking-wider">{machines.filter(m => m.type === 'DRYER').length} {t('Dryers')}</Badge>
                     </div>
                 </header>
 
@@ -225,11 +227,11 @@ function LaundromatComponent() {
                                         <CardTitle className="text-2xl font-black">{m.name}</CardTitle>
                                         <CardDescription className="text-xs font-bold uppercase tracking-wider flex items-center gap-1">
                                             {m.type === 'WASHER' ? <Waves size={12} className="text-primary" /> : <Wind size={12} className="text-orange-500" />}
-                                            {m.type}
+                                            {t(m.type)}
                                         </CardDescription>
                                     </div>
                                     <Badge variant={isBusy ? "warning" : isDone ? "default" : "success"} className="font-black capitalize bg-opacity-20">
-                                        {(m.status || 'IDLE').toLowerCase()}
+                                        {t((m.status || 'IDLE').toLowerCase())}
                                     </Badge>
                                 </CardHeader>
                                 <CardContent className="pt-4 pb-8 space-y-6">
@@ -270,7 +272,7 @@ function LaundromatComponent() {
                                         onClick={() => handleOpenBooking(m)}
                                     >
                                         {isBusy ? <Clock size={20} /> : isDone ? <CheckCircle2 size={20} /> : <Play size={20} />}
-                                        {isBusy ? 'IN USE' : isDone ? 'FINISHED' : 'BOOK NOW'}
+                                        {isBusy ? t('IN USE') : isDone ? t('FINISHED') : t('BOOK NOW')}
                                     </Button>
                                 </CardFooter>
                             </Card>
@@ -282,10 +284,10 @@ function LaundromatComponent() {
                     <DialogContent className="sm:max-w-md rounded-[2.5rem]">
                         <DialogHeader>
                             <DialogTitle className="text-3xl font-black tracking-tight text-center">
-                                CONFIGURE BOOKING
+                                {t('CONFIGURE BOOKING')}
                             </DialogTitle>
                             <DialogDescription className="text-center font-medium">
-                                Machine {selectedMachine?.name} ({selectedMachine?.type})
+                                {t('Machine')} {selectedMachine?.name} ({t(selectedMachine?.type || '')})
                             </DialogDescription>
                         </DialogHeader>
 
@@ -329,12 +331,12 @@ function LaundromatComponent() {
                                 {isPaying ? (
                                     <>
                                         <CreditCard size={24} className="animate-pulse" />
-                                        AWAITING PAYMENT...
+                                        {t('AWAITING PAYMENT...')}
                                     </>
                                 ) : (
                                     <>
                                         <Play size={24} />
-                                        INITIATE PAYMENT
+                                        {t('INITIATE PAYMENT')}
                                     </>
                                 )}
                             </Button>

@@ -15,7 +15,7 @@ generator prismabox {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 model User {
@@ -24,24 +24,11 @@ model User {
   name  String?
 }
 
-enum MachineType {
-  WASHER
-  DRYER
-}
-
-enum MachineStatus {
-  IDLE
-  BUSY
-  DONE
-  MAINTENANCE
-  BROKEN
-}
-
 model Machine {
   id                   Int           @id @default(autoincrement())
   name                 String
-  type                 MachineType
-  status               MachineStatus @default(IDLE)
+  type                 String // WASHER | DRYER
+  status               String        @default("IDLE") // IDLE | BUSY | DONE | MAINTENANCE | BROKEN
   expectedEndTime      DateTime?
   totalDurationSeconds Int?
   transactions         Transaction[]
@@ -50,7 +37,7 @@ model Machine {
 model Program {
   id           Int           @id @default(autoincrement())
   name         String
-  type         MachineType
+  type         String // WASHER | DRYER
   durationMin  Int
   price        Float
   transactions Transaction[]

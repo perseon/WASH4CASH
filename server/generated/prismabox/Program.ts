@@ -8,9 +8,7 @@ export const ProgramPlain = t.Object(
   {
     id: t.Integer(),
     name: t.String(),
-    type: t.Union([t.Literal("WASHER"), t.Literal("DRYER")], {
-      additionalProperties: false,
-    }),
+    type: t.String(),
     durationMin: t.Integer(),
     price: t.Number(),
   },
@@ -40,9 +38,7 @@ export const ProgramRelations = t.Object(
 export const ProgramPlainInputCreate = t.Object(
   {
     name: t.String(),
-    type: t.Union([t.Literal("WASHER"), t.Literal("DRYER")], {
-      additionalProperties: false,
-    }),
+    type: t.String(),
     durationMin: t.Integer(),
     price: t.Number(),
   },
@@ -52,11 +48,7 @@ export const ProgramPlainInputCreate = t.Object(
 export const ProgramPlainInputUpdate = t.Object(
   {
     name: t.Optional(t.String()),
-    type: t.Optional(
-      t.Union([t.Literal("WASHER"), t.Literal("DRYER")], {
-        additionalProperties: false,
-      }),
-    ),
+    type: t.Optional(t.String()),
     durationMin: t.Optional(t.Integer()),
     price: t.Optional(t.Number()),
   },
@@ -128,9 +120,7 @@ export const ProgramWhere = t.Partial(
           OR: t.Array(Self, { additionalProperties: false }),
           id: t.Integer(),
           name: t.String(),
-          type: t.Union([t.Literal("WASHER"), t.Literal("DRYER")], {
-            additionalProperties: false,
-          }),
+          type: t.String(),
           durationMin: t.Integer(),
           price: t.Number(),
         },
@@ -170,9 +160,7 @@ export const ProgramWhereUnique = t.Recursive(
             {
               id: t.Integer(),
               name: t.String(),
-              type: t.Union([t.Literal("WASHER"), t.Literal("DRYER")], {
-                additionalProperties: false,
-              }),
+              type: t.String(),
               durationMin: t.Integer(),
               price: t.Number(),
             },
@@ -202,7 +190,7 @@ export const ProgramSelect = t.Partial(
 
 export const ProgramInclude = t.Partial(
   t.Object(
-    { type: t.Boolean(), transactions: t.Boolean(), _count: t.Boolean() },
+    { transactions: t.Boolean(), _count: t.Boolean() },
     { additionalProperties: false },
   ),
 );
@@ -214,6 +202,9 @@ export const ProgramOrderBy = t.Partial(
         additionalProperties: false,
       }),
       name: t.Union([t.Literal("asc"), t.Literal("desc")], {
+        additionalProperties: false,
+      }),
+      type: t.Union([t.Literal("asc"), t.Literal("desc")], {
         additionalProperties: false,
       }),
       durationMin: t.Union([t.Literal("asc"), t.Literal("desc")], {
