@@ -139,4 +139,11 @@ class CommunicationService {
 }
 
 // Export a singleton instance
-export const commService = new CommunicationService('http://localhost:3000')
+// Use absolute URL from current origin to avoid host resolution issues
+const getBaseUrl = () => {
+    if (typeof window !== 'undefined') {
+        return `${window.location.origin}/api`
+    }
+    return 'http://backend:3000' // fallback for SSR
+}
+export const commService = new CommunicationService(getBaseUrl())

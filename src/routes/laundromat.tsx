@@ -76,7 +76,7 @@ function LaundromatComponent() {
     const [isBookingOpen, setIsBookingOpen] = useState(false)
     const [isPaying, setIsPaying] = useState(false)
     const [isPosModalOpen, setIsPosModalOpen] = useState(false)
-    const POS_URL = 'http://localhost:4000'
+    const POS_URL = import.meta.env.VITE_POS_URL || `${window.location.protocol}//${window.location.hostname}:4000`
 
     useEffect(() => {
         commService.connect()
@@ -97,8 +97,10 @@ function LaundromatComponent() {
                 ))
             }
             if (data.type === 'pos_update') {
+                console.log('📡 [Frontend] Received POS update:', data.data.type, data.data.payload);
                 if (data.data.type === 'TRANSACTION_RESULT') {
                     const { success, error } = data.data.payload
+                    console.log('💰 [Frontend] Transaction result:', success, 'Selected machine:', selectedMachine?.id);
                     if (success && selectedMachine && selectedProgram) {
                         toast.success('Payment successful!', {
                             description: `Starting ${selectedMachine.name} with ${selectedProgram.name}.`
@@ -176,7 +178,18 @@ function LaundromatComponent() {
         setIsPaying(true)
         try {
             const serviceName = `${selectedMachine.name} - ${selectedProgram.name}`
-            const res = await fetch(`http://localhost:3000/trigger-pos?amount=${selectedProgram.price}&serviceName=${serviceName}`)
+            const res = await fetch('/api/trigger-pos', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    amount: selectedProgram.price,
+                    serviceName: serviceName,
+                    machineId: selectedMachine.id,
+                    programId: selectedProgram.id
+                })
+            })
             if (!res.ok) throw new Error('Cound not trigger POS');
 
             // Open the POS modal
@@ -357,11 +370,6 @@ function LaundromatComponent() {
                                 <CreditCard size={20} /> SECURE PAYMENT TERMINAL
                             </DialogTitle>
                         </DialogHeader>
-                        <iframe
-                            src={POS_URL}
-                            className="w-full h-full border-none pt-12"
-                            title="POS Terminal"
-                        />
                     </DialogContent>
                 </Dialog>
             </div>

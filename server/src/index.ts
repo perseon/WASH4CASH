@@ -11,21 +11,70 @@ let lastPosStatus: any = null;
 // Store WebSocket connections to broadcast POS updates
 const activeConnections = new Set<any>();
 
-posWorker.onmessage = (event) => {
+posWorker.onmessage = async (event) => {
   const { type, payload } = event.data;
-  console.log(`📡 [Backend] Message from POS Worker:`, type, JSON.stringify(payload));
+  console.log(`📡 [Backend] Message from POS Worker: ${type}`, JSON.stringify(payload));
 
   if (type === 'STATUS_UPDATE') {
     lastPosStatus = { type: 'pos_update', data: { type, payload } };
   }
 
-  if (activeConnections.size === 0) {
+  // --- AUTOMATIC BOOKING ON SUCCESS ---
+  if (type === 'TRANSACTION_RESULT' && payload.success) {
+    const { machineId, programId, amount } = payload;
+    if (machineId && programId) {
+      console.log(`💾 [Backend] Payment successful. Recording booking for Machine #${machineId}...`);
+      try {
+        // 1. Create Transaction record
+        await prisma.transaction.create({
+          data: {
+            machineId,
+            programId,
+            amount: amount || 0,
+            status: 'PAID'
+          }
+        });
+
+        // 2. Start the machine (triggering the worker)
+        const program = await prisma.program.findUnique({ where: { id: programId } });
+        const worker = machineWorkers.get(machineId);
+
+        if (program && worker) {
+          const totalDurationSeconds = program.durationMin * 60;
+          const expectedEndTime = new Date(Date.now() + totalDurationSeconds * 1000);
+
+          await prisma.machine.update({
+            where: { id: machineId },
+            data: { status: 'BUSY', expectedEndTime, totalDurationSeconds }
+          });
+
+          worker.postMessage({ type: 'START', payload: { durationMin: program.durationMin } });
+          console.log(`✅ [Backend] Machine #${machineId} started automatically after payment.`);
+        }
+      } catch (err) {
+        console.error("❌ [Backend] Failed to auto-book after payment:", err);
+      }
+    }
+  }
+  // ------------------------------------
+
+  const broadcastMsg = { type: 'pos_update', data: { type, payload } };
+  const clientCount = activeConnections.size;
+
+  if (clientCount === 0) {
     console.warn("⚠️ [Backend] No active WebSocket connections to broadcast to");
+  } else {
+    console.log(`📣 [Backend] Broadcasting ${type} to ${clientCount} clients`);
   }
 
   // Broadcast to all active WebSocket clients
   for (const ws of activeConnections) {
-    ws.send({ type: 'pos_update', data: { type, payload } });
+    try {
+      ws.send(broadcastMsg);
+    } catch (err) {
+      console.error("❌ [Backend] Failed to send message to a client:", err);
+      activeConnections.delete(ws);
+    }
   }
 };
 // ------------------------------
@@ -167,12 +216,54 @@ const app = new Elysia()
   .delete("/programs/:id", async ({ params }: any) => {
     return prisma.program.delete({ where: { id: parseInt(params.id) } });
   })
-  .get("/trigger-pos", ({ query }) => {
-    const amount = parseFloat(query.amount || "10.00");
-    const serviceName = query.serviceName || "Washing Machine #1 - Quick Wash";
-    console.log(`🔌 [Backend] Internally triggering POS transaction for $${amount} (${serviceName})`);
-    posWorker.postMessage({ type: 'START_TRANSACTION', payload: { amount, currency: 'USD', serviceName } });
-    return { success: true, message: `Transaction for ${serviceName} ($${amount}) initiated` };
+  .post("/trigger-pos", async ({ body }) => {
+    const { machineId, programId } = body;
+
+    const parsedMachineId = Number(machineId);
+    const parsedProgramId = Number(programId);
+
+    if (isNaN(parsedMachineId) || isNaN(parsedProgramId)) {
+      console.error("❌ [Backend] Missing or invalid IDs in trigger-pos body:", body);
+      return { success: false, error: "Missing required parameters (machineId/programId)" };
+    }
+
+    try {
+      const machine = await prisma.machine.findUnique({ where: { id: parsedMachineId } });
+      const program = await prisma.program.findUnique({ where: { id: parsedProgramId } });
+
+      if (!machine || !program) {
+        return { success: false, error: "Machine or Program not found" };
+      }
+
+      console.log(`🔌 [Backend] Triggering POS for ${machine.name} - ${program.name} ($${program.price})`);
+      
+      posWorker.postMessage({
+        type: 'START_TRANSACTION',
+        payload: { 
+          amount: program.price, 
+          currency: 'USD', 
+          serviceName: `${machine.name} — ${program.name}`, 
+          machineId: parsedMachineId, 
+          programId: parsedProgramId,
+          details: {
+            machineName: machine.name,
+            programName: program.name,
+            durationMin: program.durationMin,
+            price: program.price,
+            type: machine.type
+          }
+        }
+      });
+      return { success: true, message: `Transaction for ${machine.name} initiated` };
+    } catch (err) {
+      console.error("❌ [Backend] Error triggering POS:", err);
+      return { success: false, error: "Internal Server Error" };
+    }
+  }, {
+    body: t.Object({
+      machineId: t.Union([t.Number(), t.String()]),
+      programId: t.Union([t.Number(), t.String()])
+    })
   })
   .ws('/ws', {
     open(ws) {
@@ -238,7 +329,10 @@ const app = new Elysia()
       activeConnections.delete(ws);
     }
   })
-  .listen(3000);
+  .listen({
+    port: 3000,
+    hostname: '0.0.0.0'
+  });
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`

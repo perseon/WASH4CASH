@@ -137,17 +137,36 @@ main { padding: 1.5rem; }
 .idle-subtitle { font-size: 0.8rem; color: var(--text-dim); }
 
 /* Active Transaction */
-.transaction-info { width: 100%; margin-bottom: 0.5rem; }
+.transaction-header { width: 100%; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; }
 .service-label {
     font-size: 0.6rem; font-weight: 800;
-    letter-spacing: 0.15em; color: var(--primary);
+    letter-spacing: 0.12em; color: var(--primary);
     margin-bottom: 0.35rem;
     text-transform: uppercase;
 }
 .service-name {
-    font-size: 0.95rem; font-weight: 700;
-    color: var(--text); line-height: 1.3;
+    font-size: 1.1rem; font-weight: 800;
+    color: var(--text); line-height: 1.2;
 }
+
+.bill-details {
+    width: 100%;
+    background: rgba(255,255,255,0.02);
+    border: 1px dashed var(--border);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+.bill-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+}
+.bill-item-label { color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; font-size: 0.65rem; }
+.bill-item-value { color: var(--text-mid); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
 
 .price-display {
     display: flex; align-items: flex-start; justify-content: center;

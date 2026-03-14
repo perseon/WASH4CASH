@@ -78,7 +78,7 @@ function MobileWizardComponent() {
 
   const [isPaying, setIsPaying] = useState(false)
   const [isPosModalOpen, setIsPosModalOpen] = useState(false)
-  const POS_URL = 'http://localhost:4000'
+  const POS_URL = import.meta.env.VITE_POS_URL || `${window.location.protocol}//${window.location.hostname}:4000`
 
   useEffect(() => {
     commService.connect()
@@ -183,18 +183,19 @@ function MobileWizardComponent() {
     setSelectedMachine(null)
     setSelectedProgram(null)
   }
-
   const handleConfirmBooking = async () => {
     if (!selectedMachine || !selectedProgram) return
 
     setIsPaying(true)
     try {
       const serviceName = `${selectedMachine.name} - ${selectedProgram.name}`
-      const res = await fetch(`http://localhost:3000/trigger-pos?amount=${selectedProgram.price}&serviceName=${serviceName}`)
+      const res = await fetch(`/api/trigger-pos?amount=${selectedProgram.price}&serviceName=${serviceName}`)
       if (!res.ok) throw new Error('Cound not trigger POS');
 
-      setIsPosModalOpen(true)
+      // Open the POS modal
+      //setIsPosModalOpen(true)
     } catch (e) {
+
       toast.error(t('Backend connection lost'), {
         description: t('Could not communicate with the server to initiate payment.')
       })

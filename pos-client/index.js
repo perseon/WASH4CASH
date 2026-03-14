@@ -16,6 +16,7 @@ const serviceName = document.getElementById('pos-service-name');
 const priceAmount = document.getElementById('pos-price');
 const statusChip = document.getElementById('pos-status-text');
 const statusMessage = document.getElementById('pos-message');
+const billDetails = document.getElementById('bill-details');
 
 // Result elements
 const resultIcon = document.getElementById('result-icon');
@@ -49,13 +50,33 @@ function showIdle() {
     payBtn.disabled = true;
 }
 
-function showTransaction(svcName, amount, chipClass, chipText, msgText, canPay) {
+function showTransaction(svcName, amount, chipClass, chipText, msgText, canPay, details) {
     serviceName.textContent = svcName || 'Unknown Service';
     priceAmount.textContent = amount != null ? parseFloat(amount).toFixed(2) : '0.00';
 
     statusChip.className = 'status-chip ' + chipClass;
     statusChip.textContent = chipText;
     statusMessage.textContent = msgText;
+
+    // Render bill details if available
+    billDetails.innerHTML = '';
+    if (details) {
+        const items = [
+            { label: 'Machine', value: details.machineName || '-' },
+            { label: 'Program', value: details.programName || '-' },
+            { label: 'Duration', value: `${details.durationMin || 0} mins` }
+        ];
+
+        items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'bill-item';
+            div.innerHTML = `
+                <span class="bill-item-label">${item.label}</span>
+                <span class="bill-item-value">${item.value}</span>
+            `;
+            billDetails.appendChild(div);
+        });
+    }
 
     showPanel(stateActive);
     payBtn.disabled = !canPay;
@@ -78,7 +99,7 @@ function handleMessage(data) {
         const { type, payload } = data.data;
 
         if (type === 'STATUS_UPDATE') {
-            const { status, message, serviceName: svc, amount } = payload;
+            const { status, message, serviceName: svc, amount, details } = payload;
             addLog(`Status: ${status}${message ? ' — ' + message : ''}`, 'info');
 
             switch (status) {
@@ -87,19 +108,19 @@ function handleMessage(data) {
                     break;
                 case 'WAITING_FOR_CARD':
                     setScreenTheme('waiting');
-                    showTransaction(svc, amount, 'waiting', 'Waiting for Card', message || 'Please tap or insert your card', true);
+                    showTransaction(svc, amount, 'waiting', 'Waiting for Card', message || 'Please tap or insert your card', true, details);
                     break;
                 case 'PROCESSING':
                     setScreenTheme('processing');
-                    showTransaction(svc, amount, 'processing', 'Processing...', message || 'Please wait...', false);
+                    showTransaction(svc, amount, 'processing', 'Processing...', message || 'Please wait...', false, details);
                     break;
                 case 'SUCCESS':
                     setScreenTheme('success');
-                    showTransaction(svc, amount, 'success', 'Approved', message || 'Payment complete!', false);
+                    showTransaction(svc, amount, 'success', 'Approved', message || 'Payment complete!', false, details);
                     break;
                 case 'FAILED':
                     setScreenTheme('error');
-                    showTransaction(svc, amount, 'error', 'Declined', message || 'Transaction failed.', false);
+                    showTransaction(svc, amount, 'error', 'Declined', message || 'Transaction failed.', false, details);
                     break;
             }
         } else if (type === 'TRANSACTION_RESULT') {
@@ -121,7 +142,12 @@ function handleMessage(data) {
 // --- WebSocket ---
 function connect() {
     addLog('Connecting to backend...', 'warn');
-    ws = new WebSocket('ws://localhost:3000/ws');
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    
+    // Relative path to hit our own host's proxy
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    addLog(`Target: ${wsUrl}`, 'info');
+    ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
         connBadge.textContent = 'Connected';

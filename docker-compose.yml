@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # The Backend API (Elysia + Prisma)
+  backend:
+    build: .
+    # Ensure client is generated, migrations are applied and seed is run before starting the backend
+    command: bash -c "cd server && bun run prisma generate && bun run prisma migrate deploy && bun run src/seed.ts && bun run dev"
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+      - /usr/src/app/server/node_modules
+    environment:
+      - DATABASE_URL=file:./prisma/dev.db
+    networks:
+      - dev-network
+    develop:
+      watch:
+        - action: sync
+          path: ./server
+          target: /usr/src/app/server
+          ignore:
+            - node_modules/
+        - action: rebuild
+          path: ./server/package.json
+
+  # The Main React Frontend (Vite)
+  frontend:
+    build: .
+    command: bun run dev:frontend --host 0.0.0.0
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+      - /usr/src/app/server/node_modules
+    environment:
+      - VITE_POS_URL=https://pos.webcandy.eu
+    depends_on:
+      - backend
+    networks:
+      - dev-network
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /usr/src/app/src
+        - action: sync
+          path: ./public
+          target: /usr/src/app/public
+        - action: rebuild
+          path: ./package.json
+        - action: rebuild
+          path: ./bun.lock
+
+  # The POS Interface (Bun.serve)
+  pos:
+    build: .
+    command: bun run dev:pos --host 0.0.0.0
+    ports:
+      - "4000:4000"
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - dev-network
+    develop:
+      watch:
+        - action: sync
+          path: ./pos-client
+          target: /usr/src/app/pos-client
+          ignore:
+            - node_modules/
+        - action: rebuild
+          path: ./package.json
+
+networks:
+  dev-network:
+    external: true

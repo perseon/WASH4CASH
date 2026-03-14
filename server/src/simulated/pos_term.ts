@@ -14,13 +14,22 @@ let currentState: POSState = POSState.IDLE;
 let currentTransactionId: string | null = null;
 let currentServiceName: string | null = null;
 let currentAmount: number | null = null;
+let currentMachineId: number | null = null;
+let currentProgramId: number | null = null;
+let currentDetails: any = null;
 
 const sendStatus = (status: POSState, message?: string) => {
     currentState = status;
     // @ts-ignore
     postMessage({
         type: "STATUS_UPDATE",
-        payload: { status, message, serviceName: currentServiceName, amount: currentAmount },
+        payload: { 
+            status, 
+            message, 
+            serviceName: currentServiceName, 
+            amount: currentAmount,
+            details: currentDetails
+        },
     });
 };
 
@@ -28,7 +37,14 @@ const sendResult = (success: boolean, transactionId: string, error?: string) => 
     // @ts-ignore
     postMessage({
         type: "TRANSACTION_RESULT",
-        payload: { success, transactionId, error },
+        payload: {
+            success,
+            transactionId,
+            error,
+            machineId: currentMachineId,
+            programId: currentProgramId,
+            amount: currentAmount
+        },
     });
     sendStatus(success ? POSState.SUCCESS : POSState.FAILED);
 
@@ -37,6 +53,9 @@ const sendResult = (success: boolean, transactionId: string, error?: string) => 
         currentServiceName = null;
         currentTransactionId = null;
         currentAmount = null;
+        currentMachineId = null;
+        currentProgramId = null;
+        currentDetails = null;
         sendStatus(POSState.IDLE);
     }, 3000);
 };
@@ -61,6 +80,9 @@ self.onmessage = (event: MessageEvent) => {
             currentTransactionId = `tx_${Date.now()}`;
             currentServiceName = payload.serviceName || "Unknown Service";
             currentAmount = payload.amount || null;
+            currentMachineId = payload.machineId || null;
+            currentProgramId = payload.programId || null;
+            currentDetails = payload.details || null;
             sendStatus(POSState.WAITING_FOR_CARD, "Please tap or insert card");
             break;
 
@@ -82,6 +104,9 @@ self.onmessage = (event: MessageEvent) => {
             currentServiceName = null;
             currentTransactionId = null;
             currentAmount = null;
+            currentMachineId = null;
+            currentProgramId = null;
+            currentDetails = null;
             sendStatus(POSState.IDLE);
             break;
 
@@ -89,6 +114,9 @@ self.onmessage = (event: MessageEvent) => {
             if (currentState !== POSState.IDLE && currentState !== POSState.SUCCESS && currentState !== POSState.FAILED) {
                 currentServiceName = null;
                 currentTransactionId = null;
+                currentMachineId = null;
+                currentProgramId = null;
+                currentDetails = null;
                 sendStatus(POSState.IDLE, "Transaction cancelled");
             }
             break;

@@ -22,7 +22,7 @@ async function init() {
 
 async function fetchMachines() {
     try {
-        const res = await fetch('http://localhost:3000/machines');
+        const res = await fetch('/machines');
         machines = await res.json();
     } catch (e) {
         console.error('Failed to fetch machines', e);
@@ -31,7 +31,7 @@ async function fetchMachines() {
 
 async function fetchPrograms() {
     try {
-        const res = await fetch('http://localhost:3000/programs');
+        const res = await fetch('/programs');
         programs = await res.json();
     } catch (e) {
         console.error('Failed to fetch programs', e);
@@ -44,7 +44,9 @@ async function fetchPrograms() {
 }
 
 function connect() {
-    ws = new WebSocket('ws://localhost:3000/ws');
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.hostname}:3000/ws`;
+    ws = new WebSocket(wsUrl);
     
     ws.onopen = () => {
         commDot.className = 'dot online';
@@ -150,7 +152,7 @@ startBtn.onclick = async () => {
 
     // 1. Trigger POS
     try {
-        const posRes = await fetch(`http://localhost:3000/trigger-pos?amount=${selectedProgram.price}&serviceName=${selectedMachine.name} - ${selectedProgram.name}`);
+        const posRes = await fetch(`/trigger-pos?amount=${selectedProgram.price}&serviceName=${selectedMachine.name} - ${selectedProgram.name}`);
         const posData = await posRes.json();
         
         if (posData.success) {
@@ -195,7 +197,7 @@ ws.onmessage = (event) => {
 
 async function startMachine(machineId, programId) {
     try {
-        await fetch(`http://localhost:3000/machines/${machineId}/start`, {
+        await fetch(`/machines/${machineId}/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ programId })
@@ -253,7 +255,7 @@ window.addProgram = async () => {
     if (!name || isNaN(durationMin) || isNaN(price)) return;
 
     try {
-        const res = await fetch('http://localhost:3000/programs', {
+        const res = await fetch('/programs', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, type, durationMin, price })
@@ -270,7 +272,7 @@ window.addProgram = async () => {
 window.deleteProgram = async (id) => {
     if (!confirm('Delete this program?')) return;
     try {
-        const res = await fetch(`http://localhost:3000/programs/${id}`, { method: 'DELETE' });
+        const res = await fetch(`/programs/${id}`, { method: 'DELETE' });
         if (res.ok) {
             await fetchPrograms();
             renderAdminPrograms();
