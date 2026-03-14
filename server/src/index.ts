@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import { cors } from '@elysiajs/cors'
 import { prisma } from "./lib/prisma";
+export * from "./lib/prisma.js";
 
 // --- POS TERMINAL SIMULATOR ---
 const posWorker = new Worker(new URL('./simulated/pos_term.ts', import.meta.url).href);
@@ -152,8 +153,6 @@ async function initMachines() {
     machineWorkers.set(m.id, worker);
   }
 }
-
-initMachines();
 // ---------------------------------
 
 const app = new Elysia()
@@ -217,19 +216,14 @@ const app = new Elysia()
     return prisma.program.delete({ where: { id: parseInt(params.id) } });
   })
   .post("/trigger-pos", async ({ body }) => {
-    const { machineId, programId } = body;
-
-    const parsedMachineId = Number(machineId);
-    const parsedProgramId = Number(programId);
-
-    if (isNaN(parsedMachineId) || isNaN(parsedProgramId)) {
-      console.error("❌ [Backend] Missing or invalid IDs in trigger-pos body:", body);
-      return { success: false, error: "Missing required parameters (machineId/programId)" };
-    }
+    const machineId = Number(body.machineId);
+    const programId = Number(body.programId);
+    
+    console.log(`📡 [Backend] Received trigger-pos request:`, { machineId, programId });
 
     try {
-      const machine = await prisma.machine.findUnique({ where: { id: parsedMachineId } });
-      const program = await prisma.program.findUnique({ where: { id: parsedProgramId } });
+      const machine = await prisma.machine.findUnique({ where: { id: machineId } });
+      const program = await prisma.program.findUnique({ where: { id: programId } });
 
       if (!machine || !program) {
         return { success: false, error: "Machine or Program not found" };
@@ -243,8 +237,8 @@ const app = new Elysia()
           amount: program.price, 
           currency: 'USD', 
           serviceName: `${machine.name} — ${program.name}`, 
-          machineId: parsedMachineId, 
-          programId: parsedProgramId,
+          machineId, 
+          programId,
           details: {
             machineName: machine.name,
             programName: program.name,
@@ -328,16 +322,22 @@ const app = new Elysia()
       console.log('❌ WebSocket connection closed')
       activeConnections.delete(ws);
     }
-  })
-  .listen({
+  });
+
+try {
+  initMachines();
+
+  const server = app.listen({
     port: 3000,
     hostname: '0.0.0.0'
   });
 
-console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
-);
+  console.log(
+    `🦊 Elysia is running at ${server.server?.hostname}:${server.server?.port}`
+  );
+} catch (err) {
+  console.error("💥 [Backend] FATAL STARTUP ERROR:", err);
+  process.exit(1);
+}
 
 export type App = typeof app
-
-

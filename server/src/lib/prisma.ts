@@ -1,5 +1,6 @@
 import { PrismaClient } from "../generated/prisma/client.js";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { MachineStatus, MachineType, POSState } from "../types";
 
 const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
 
@@ -7,5 +8,4 @@ const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
 const adapter = new PrismaLibSql({ url: dbUrl });
 
 export const prisma = new PrismaClient({ adapter });
-
-
+export { MachineStatus, MachineType, POSState };

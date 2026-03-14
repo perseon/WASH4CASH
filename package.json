@@ -12,10 +12,10 @@
     "build": "bun --bun vite build",
     "test": "bun --bun vitest run",
     "serve": "bun --bun vite preview",
-    "dev:backend": "bun --bun run --cwd server src/index.ts",
-    "dev:frontend": "bun --bun run vite dev",
-    "dev:pos": "bun --bun run --cwd pos-client serve.ts",
-    "db:reset": "bun --bun run --cwd server src/scripts/reset.ts",
+    "dev:backend": "bun run --cwd server src/index.ts",
+    "dev:frontend": "bun run vite dev",
+    "dev:pos": "bun run --cwd pos-client serve.ts",
+    "db:reset": "bun run --cwd server src/scripts/reset.ts",
     "dev": "bun run --parallel dev:pos dev:backend dev:frontend"
   },
   "dependencies": {

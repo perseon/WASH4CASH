@@ -2,13 +2,7 @@
 console.log("[POS Worker] Simulator thread started");
 // This runs in a separate thread/process via Bun Workers
 
-export enum POSState {
-    IDLE = "IDLE",
-    WAITING_FOR_CARD = "WAITING_FOR_CARD",
-    PROCESSING = "PROCESSING",
-    SUCCESS = "SUCCESS",
-    FAILED = "FAILED",
-}
+import { POSState } from '../types'
 
 let currentState: POSState = POSState.IDLE;
 let currentTransactionId: string | null = null;
@@ -23,10 +17,10 @@ const sendStatus = (status: POSState, message?: string) => {
     // @ts-ignore
     postMessage({
         type: "STATUS_UPDATE",
-        payload: { 
-            status, 
-            message, 
-            serviceName: currentServiceName, 
+        payload: {
+            status,
+            message,
+            serviceName: currentServiceName,
             amount: currentAmount,
             details: currentDetails
         },

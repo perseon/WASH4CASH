@@ -1,5 +1,5 @@
 import { createFileRoute, useLoaderData } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { commService } from '../services/comm.service'
 import {
     Settings,
@@ -35,19 +35,15 @@ import { Badge } from '../components/ui/badge'
 
 export const Route = createFileRoute('/admin')({
     component: AdminComponent,
+    ssr: false,
     loader: async () => {
         const { data } = await commService.api.programs.get()
         return { initialPrograms: (data || []) as Program[] }
     }
 })
 
-interface Program {
-    id: number
-    name: string
-    type: 'WASHER' | 'DRYER'
-    durationMin: number
-    price: number
-}
+import { MachineType } from '../types'
+import type { Program } from '../types'
 
 function AdminComponent() {
     const { initialPrograms } = useLoaderData({ from: '/admin' })
@@ -55,7 +51,7 @@ function AdminComponent() {
     const [isAdding, setIsAdding] = useState(false)
     const [newP, setNewP] = useState<Partial<Program>>({
         name: '',
-        type: 'WASHER',
+        type: MachineType.WASHER,
         durationMin: 30,
         price: 5.00
     })
@@ -83,7 +79,7 @@ function AdminComponent() {
             })
             await fetchPrograms()
             setIsAdding(false)
-            setNewP({ name: '', type: 'WASHER', durationMin: 30, price: 5.00 })
+            setNewP({ name: '', type: MachineType.WASHER, durationMin: 30, price: 5.00 })
         } catch (e) {
             console.error('Failed to add program', e)
         } finally {
@@ -153,8 +149,8 @@ function AdminComponent() {
                                         <SelectValue placeholder="Select type" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="WASHER">Washer</SelectItem>
-                                        <SelectItem value="DRYER">Dryer</SelectItem>
+                                        <SelectItem value={MachineType.WASHER}>Washer</SelectItem>
+                                        <SelectItem value={MachineType.DRYER}>Dryer</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -222,7 +218,7 @@ function AdminComponent() {
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-2">
-                                                {p.type === 'WASHER' ? <Waves size={16} className="text-primary" /> : <Wind size={16} className="text-orange-500" />}
+                                                {p.type === MachineType.WASHER ? <Waves size={16} className="text-primary" /> : <Wind size={16} className="text-orange-500" />}
                                                 <Badge variant="secondary" className="font-black">{p.type}</Badge>
                                             </div>
                                         </TableCell>

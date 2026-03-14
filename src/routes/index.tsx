@@ -24,9 +24,13 @@ import {
   DialogTitle,
 } from '../components/ui/dialog'
 import { toast } from 'sonner'
+import { paymentService } from '#/services/payment.service'
+import { MachineType } from '../types'
+import type { Machine, Program, MachineUpdate } from '../types'
 
 export const Route = createFileRoute('/')({
   component: MobileWizardComponent,
+  ssr: false,
   loader: async () => {
     const [machinesRes, programsRes] = await Promise.all([
       commService.api.machines.get(),
@@ -38,31 +42,6 @@ export const Route = createFileRoute('/')({
     }
   }
 })
-
-type MachineType = 'WASHER' | 'DRYER'
-type MachineStatus = 'IDLE' | 'BUSY' | 'DONE' | 'MAINTENANCE' | 'BROKEN'
-
-interface Machine {
-  id: number
-  name: string
-  type: MachineType
-  status: MachineStatus
-}
-
-interface Program {
-  id: number
-  name: string
-  type: MachineType
-  durationMin: number
-  price: number
-}
-
-interface MachineUpdate {
-  machineId: number
-  status: MachineStatus
-  remainingTime: number
-  totalDurationSeconds?: number
-}
 
 function MobileWizardComponent() {
   const { t } = useTranslation()
@@ -77,8 +56,6 @@ function MobileWizardComponent() {
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null)
 
   const [isPaying, setIsPaying] = useState(false)
-  const [isPosModalOpen, setIsPosModalOpen] = useState(false)
-  const POS_URL = import.meta.env.VITE_POS_URL || `${window.location.protocol}//${window.location.hostname}:4000`
 
   useEffect(() => {
     commService.connect()
@@ -98,31 +75,23 @@ function MobileWizardComponent() {
           m.id === update.machineId ? { ...m, status: update.status || m.status } : m
         ))
       }
-      if (data.type === 'pos_update') {
-        if (data.data.type === 'TRANSACTION_RESULT') {
-          const { success, error } = data.data.payload
-          if (success && selectedMachine && selectedProgram) {
-            toast.success(t('Payment successful!'), {
-              description: `${t('Starting')} ${selectedMachine.name} ${t('with')} ${selectedProgram.name}.`
-            })
-            startMachine(selectedMachine.id, selectedProgram.id)
-            setIsPaying(false)
-            setIsPosModalOpen(false)
-            setStep(4) // Advance to Step 4 (Thank You page)
-          } else if (!success) {
-            toast.error(t('Payment failed'), {
-              description: error || t('The transaction was declined or interrupted.')
-            })
-            setIsPaying(false)
-            setIsPosModalOpen(false)
-          }
-        } else if (data.data.type === 'ERROR') {
-          toast.error(t('POS Terminal Error'), {
-            description: data.data.payload.message
-          })
-          setIsPaying(false)
-        }
+    })
+
+    const unsubPaymentResult = paymentService.onResult((result) => {
+      if (result.success) {
+        toast.success(t('Payment successful!'), {
+          description: `${t('Starting')} ${selectedMachine?.name} ${t('with')} ${selectedProgram?.name}.`
+        })
+        setStep(4)
+      } else if (!result.success && result.error !== 'Timeout') {
+        toast.error(t('Payment failed'), {
+          description: result.error || t('The transaction was declined or interrupted.')
+        })
       }
+    })
+
+    const unsubPaymentStatus = paymentService.onStatusChange((status) => {
+      setIsPaying(status === 'awaiting_payment' || status === 'processing')
     })
 
     commService.send('refreshMachines')
@@ -130,25 +99,11 @@ function MobileWizardComponent() {
 
     return () => {
       unsubMessage()
+      unsubPaymentResult()
+      unsubPaymentStatus()
     }
   }, [selectedMachine, selectedProgram])
 
-  useEffect(() => {
-    let timeoutId: any = null;
-    if (isPaying) {
-      timeoutId = setTimeout(() => {
-        setIsPaying(false);
-        setIsPosModalOpen(false);
-        commService.send('posReset');
-        toast.error(t('Payment timeout'), {
-          description: t('No response from POS terminal. Please ensure it is running.')
-        });
-      }, 60000);
-    }
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    }
-  }, [isPaying])
 
   // Auto-close timer for Step 4
   useEffect(() => {
@@ -163,21 +118,8 @@ function MobileWizardComponent() {
     }
   }, [step])
 
-  const startMachine = async (machineId: number, programId: number) => {
-    try {
-      // @ts-ignore
-      await commService.api.machines({ id: machineId }).start.post({ programId })
-    } catch (e) {
-      toast.error(t('Control error'), {
-        description: t('Failed to send start signal to the machine.')
-      })
-      console.error('Failed to start machine', e)
-    }
-  }
-
   const resetWizard = () => {
     setIsPaying(false)
-    setIsPosModalOpen(false)
     setStep(1)
     setSelectedType(null)
     setSelectedMachine(null)
@@ -185,23 +127,7 @@ function MobileWizardComponent() {
   }
   const handleConfirmBooking = async () => {
     if (!selectedMachine || !selectedProgram) return
-
-    setIsPaying(true)
-    try {
-      const serviceName = `${selectedMachine.name} - ${selectedProgram.name}`
-      const res = await fetch(`/api/trigger-pos?amount=${selectedProgram.price}&serviceName=${serviceName}`)
-      if (!res.ok) throw new Error('Cound not trigger POS');
-
-      // Open the POS modal
-      //setIsPosModalOpen(true)
-    } catch (e) {
-
-      toast.error(t('Backend connection lost'), {
-        description: t('Could not communicate with the server to initiate payment.')
-      })
-      console.error('POS Trigger failed', e)
-      setIsPaying(false)
-    }
+    await paymentService.initiatePayment(selectedMachine, selectedProgram)
   }
 
   const goBack = () => {
@@ -221,7 +147,7 @@ function MobileWizardComponent() {
       <h2 className="text-3xl font-black tracking-tight text-center mb-4">{t('What do you need?')}</h2>
 
       <button
-        onClick={() => { setSelectedType('WASHER'); setStep(2) }}
+        onClick={() => { setSelectedType(MachineType.WASHER); setStep(2) }}
         className="group relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-blue-500 to-blue-700 p-8 text-white shadow-xl transition-transform active:scale-95"
       >
         <div className="absolute -right-4 -top-8 opacity-20 transition-transform group-hover:scale-110">
@@ -239,7 +165,7 @@ function MobileWizardComponent() {
       </button>
 
       <button
-        onClick={() => { setSelectedType('DRYER'); setStep(2) }}
+        onClick={() => { setSelectedType(MachineType.DRYER); setStep(2) }}
         className="group relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-orange-500 to-red-600 p-8 text-white shadow-xl transition-transform active:scale-95"
       >
         <div className="absolute -right-4 -top-8 opacity-20 transition-transform group-hover:scale-110">
@@ -300,8 +226,8 @@ function MobileWizardComponent() {
                 )}
 
                 <div className="flex items-center gap-4 relative z-10 w-full">
-                  <div className={`p-3 rounded-2xl shrink-0 ${isAvailable ? (selectedType === 'WASHER' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600') : 'bg-muted text-muted-foreground'}`}>
-                    {selectedType === 'WASHER' ? <Waves size={24} /> : <Wind size={24} />}
+                  <div className={`p-3 rounded-2xl shrink-0 ${isAvailable ? (selectedType === MachineType.WASHER ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600') : 'bg-muted text-muted-foreground'}`}>
+                    {selectedType === MachineType.WASHER ? <Waves size={24} /> : <Wind size={24} />}
                   </div>
                   <div className="flex-1 flex justify-between items-center">
                     <div>
@@ -384,7 +310,7 @@ function MobileWizardComponent() {
         <div className="bg-muted p-6 rounded-[2rem] w-full max-w-sm mb-12">
           <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-2">{t('Ready to use')}</p>
           <div className="text-3xl font-black flex items-center justify-center gap-3">
-            {selectedMachine?.type === 'WASHER' ? <Waves className="text-blue-500" /> : <Wind className="text-orange-500" />}
+            {selectedMachine?.type === MachineType.WASHER ? <Waves className="text-blue-500" /> : <Wind className="text-orange-500" />}
             {selectedMachine?.name}
           </div>
           <p className="text-sm font-medium mt-3">
@@ -476,24 +402,6 @@ function MobileWizardComponent() {
           )}
         </div>
       )}
-
-      {/* POS Modal */}
-      <Dialog open={isPosModalOpen} onOpenChange={setIsPosModalOpen}>
-        <DialogContent className="w-[95vw] max-w-md h-[70vh] p-0 overflow-hidden rounded-[2.5rem] border-none">
-          <DialogHeader className="p-4 pb-0 absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-background to-transparent pointer-events-none">
-            <DialogTitle className="text-sm font-black flex items-center gap-2 opacity-60">
-              <CreditCard size={16} /> {t('SECURE PAYMENT')}
-            </DialogTitle>
-          </DialogHeader>
-          {isPosModalOpen && (
-            <iframe
-              src={POS_URL}
-              className="w-full h-full border-none pt-10"
-              title="POS Terminal"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
 
     </div>
   )

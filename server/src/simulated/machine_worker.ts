@@ -1,13 +1,7 @@
 // machine_worker.ts
 // Simulates a Washer or Dryer
 
-enum MachineStatus {
-    IDLE = "IDLE",
-    BUSY = "BUSY",
-    DONE = "DONE",
-    MAINTENANCE = "MAINTENANCE",
-    BROKEN = "BROKEN",
-}
+import { MachineStatus } from '../types'
 
 let machineStatus: MachineStatus = MachineStatus.IDLE;
 let remainingTime = 0;

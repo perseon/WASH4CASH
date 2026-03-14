@@ -4,6 +4,7 @@ import { commService, type CommStatus } from '../services/comm.service'
 import { Users, RefreshCcw, Wifi, WifiOff, User as UserIcon, AlertCircle } from 'lucide-react'
 
 export const Route = createFileRoute('/users-ws')({
+    ssr: false,
     component: UsersWSComponent,
 })
 
